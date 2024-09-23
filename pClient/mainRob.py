@@ -68,21 +68,40 @@ class MyRob(CRobLinkAngs):
         left_id = 1
         right_id = 2
         back_id = 3
-        if    self.measures.irSensor[center_id] > 5.0\
-           or self.measures.irSensor[left_id]   > 5.0\
-           or self.measures.irSensor[right_id]  > 5.0\
-           or self.measures.irSensor[back_id]   > 5.0:
-            print('Rotate left')
-            self.driveMotors(-0.1,+0.1)
-        elif self.measures.irSensor[left_id]> 2.7:
-            print('Rotate slowly right')
-            self.driveMotors(0.1,0.0)
-        elif self.measures.irSensor[right_id]> 2.7:
-            print('Rotate slowly left')
-            self.driveMotors(0.0,0.1)
+
+        max_velocity = 0.1
+        max_proximity_allowed = 5
+
+        p_value = 1
+        i_value = 0
+        d_value = 0
+
+        left_proximity = self.measures.irSensor[left_id]
+        right_proximity = self.measures.irSensor[right_id]
+        front_proximity = self.measures.irSensor[center_id]
+        back_proximity = self.measures.irSensor[back_id]
+
+        error = right_proximity-left_proximity
+        delta_error = error-last_error
+        accumulated_error = accumulated_error + error
+
+        pid_error = p_value * error + d_value * delta_error + i_value * accumulated_error
+
+        desired_velocity = ((-2*max_velocity)/(2*max_proximity_allowed))*(max_proximity_allowed-pid_error)+max_velocity
+
+        if front_proximity > 5:
+            print("Reverse")
+            self.driveMotors(-0.1,-0.1)
         else:
-            print('Go')
-            self.driveMotors(0.1,0.1)
+            if error > 1:
+                print('Rotate left')
+                self.driveMotors(max(desired_velocity,-0.1),+0.1)
+            elif error < -1:
+                print ('Rotate right')
+                self.driveMotors(+0.1,max(desired_velocity,-0.1))
+            else:
+                print('Go')
+                self.driveMotors(0.1,0.1)
 
 class Map():
     def __init__(self, filename):
@@ -116,6 +135,8 @@ rob_name = "pClient1"
 host = "localhost"
 pos = 1
 mapc = None
+last_error = 0
+accumulated_error = 0   
 
 for i in range(1, len(sys.argv),2):
     if (sys.argv[i] == "--host" or sys.argv[i] == "-h") and i != len(sys.argv) - 1:
