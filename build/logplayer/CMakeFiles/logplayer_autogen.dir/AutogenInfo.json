@@ -1,0 +1,220 @@
+{
+	"BUILD_DIR" : "/home/pedro/ciberRatoTools/build/logplayer/logplayer_autogen",
+	"CMAKE_BINARY_DIR" : "/home/pedro/ciberRatoTools/build",
+	"CMAKE_CURRENT_BINARY_DIR" : "/home/pedro/ciberRatoTools/build/logplayer",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/home/pedro/ciberRatoTools/logplayer",
+	"CMAKE_EXECUTABLE" : "/home/pedro/.local/lib/python3.8/site-packages/cmake/data/bin/cmake",
+	"CMAKE_LIST_FILES" : [ "/home/pedro/ciberRatoTools/logplayer/CMakeLists.txt" ],
+	"CMAKE_SOURCE_DIR" : "/home/pedro/ciberRatoTools",
+	"DEP_FILE" : "",
+	"DEP_FILE_RULE_NAME" : "",
+	"HEADERS" : 
+	[
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbbeacon.h",
+			"MU",
+			"EWIEGA46WW/moc_cbbeacon.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbclient.h",
+			"MU",
+			"EWIEGA46WW/moc_cbclient.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbgrid.h",
+			"MU",
+			"EWIEGA46WW/moc_cbgrid.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbgridhandler.h",
+			"MU",
+			"EWIEGA46WW/moc_cbgridhandler.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cblab.h",
+			"MU",
+			"EWIEGA46WW/moc_cblab.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cblabhandler.h",
+			"MU",
+			"EWIEGA46WW/moc_cblabhandler.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbloghandler.h",
+			"MU",
+			"EWIEGA46WW/moc_cbloghandler.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cblogplayer.h",
+			"MU",
+			"EWIEGA46WW/moc_cblogplayer.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbparameters.h",
+			"MU",
+			"EWIEGA46WW/moc_cbparameters.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbparamhandler.h",
+			"MU",
+			"EWIEGA46WW/moc_cbparamhandler.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbpoint.h",
+			"MU",
+			"EWIEGA46WW/moc_cbpoint.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbposition.h",
+			"MU",
+			"EWIEGA46WW/moc_cbposition.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbreceptionhandler.h",
+			"MU",
+			"EWIEGA46WW/moc_cbreceptionhandler.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbreceptionist.h",
+			"MU",
+			"EWIEGA46WW/moc_cbreceptionist.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbrobot.h",
+			"MU",
+			"EWIEGA46WW/moc_cbrobot.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbtarget.h",
+			"MU",
+			"EWIEGA46WW/moc_cbtarget.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbview.h",
+			"MU",
+			"EWIEGA46WW/moc_cbview.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbviewhandler.h",
+			"MU",
+			"EWIEGA46WW/moc_cbviewhandler.cpp",
+			null
+		],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbwall.h",
+			"MU",
+			"EWIEGA46WW/moc_cbwall.cpp",
+			null
+		]
+	],
+	"HEADER_EXTENSIONS" : [ "h", "hh", "h++", "hm", "hpp", "hxx", "in", "txx" ],
+	"INCLUDE_DIR" : "/home/pedro/ciberRatoTools/build/logplayer/logplayer_autogen/include",
+	"MOC_COMPILATION_FILE" : "/home/pedro/ciberRatoTools/build/logplayer/logplayer_autogen/mocs_compilation.cpp",
+	"MOC_DEFINITIONS" : 
+	[
+		"QT_CORE_LIB",
+		"QT_GUI_LIB",
+		"QT_NETWORK_LIB",
+		"QT_NO_DEBUG",
+		"QT_WIDGETS_LIB",
+		"QT_XML_LIB"
+	],
+	"MOC_DEPEND_FILTERS" : 
+	[
+		[
+			"Q_PLUGIN_METADATA",
+			"[\n][ \t]*Q_PLUGIN_METADATA[ \t]*\\([^\\)]*FILE[ \t]*\"([^\"]+)\""
+		]
+	],
+	"MOC_INCLUDES" : 
+	[
+		"/home/pedro/ciberRatoTools/logplayer",
+		"/home/pedro/ciberRatoTools/build/logplayer",
+		"/usr/include/x86_64-linux-gnu/qt5",
+		"/usr/include/x86_64-linux-gnu/qt5/QtWidgets",
+		"/usr/include/x86_64-linux-gnu/qt5/QtGui",
+		"/usr/include/x86_64-linux-gnu/qt5/QtCore",
+		"/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++",
+		"/usr/include/x86_64-linux-gnu/qt5/QtNetwork",
+		"/usr/include/x86_64-linux-gnu/qt5/QtXml",
+		"/usr/include/c++/9",
+		"/usr/include/x86_64-linux-gnu/c++/9",
+		"/usr/include/c++/9/backward",
+		"/usr/lib/gcc/x86_64-linux-gnu/9/include",
+		"/usr/local/include",
+		"/usr/include/x86_64-linux-gnu",
+		"/usr/include"
+	],
+	"MOC_MACRO_NAMES" : [ "Q_OBJECT", "Q_GADGET", "Q_NAMESPACE", "Q_NAMESPACE_EXPORT" ],
+	"MOC_OPTIONS" : [],
+	"MOC_PATH_PREFIX" : false,
+	"MOC_PREDEFS_CMD" : 
+	[
+		"/usr/bin/c++",
+		"-dM",
+		"-E",
+		"-c",
+		"/home/pedro/.local/lib/python3.8/site-packages/cmake/data/share/cmake-3.26/Modules/CMakeCXXCompilerABI.cpp"
+	],
+	"MOC_PREDEFS_FILE" : "/home/pedro/ciberRatoTools/build/logplayer/logplayer_autogen/moc_predefs.h",
+	"MOC_RELAXED_MODE" : false,
+	"MOC_SKIP" : [],
+	"MULTI_CONFIG" : false,
+	"PARALLEL" : 4,
+	"PARSE_CACHE_FILE" : "/home/pedro/ciberRatoTools/build/logplayer/CMakeFiles/logplayer_autogen.dir/ParseCache.txt",
+	"QT_MOC_EXECUTABLE" : "/usr/lib/qt5/bin/moc",
+	"QT_UIC_EXECUTABLE" : "/usr/lib/qt5/bin/uic",
+	"QT_VERSION_MAJOR" : 5,
+	"QT_VERSION_MINOR" : 12,
+	"SETTINGS_FILE" : "/home/pedro/ciberRatoTools/build/logplayer/CMakeFiles/logplayer_autogen.dir/AutogenUsed.txt",
+	"SOURCES" : 
+	[
+		[ "/home/pedro/ciberRatoTools/logplayer/cbbeacon.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbclient.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbgrid.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbgridhandler.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cblab.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cblabhandler.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbloghandler.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cblogplayer.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbparameters.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbparamhandler.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbpoint.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbposition.cpp", "MU", null ],
+		[
+			"/home/pedro/ciberRatoTools/logplayer/cbreceptionhandler.cpp",
+			"MU",
+			null
+		],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbreceptionist.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbrobot.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbtarget.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbview.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbviewhandler.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/cbwall.cpp", "MU", null ],
+		[ "/home/pedro/ciberRatoTools/logplayer/logplayer.cpp", "MU", null ]
+	],
+	"UIC_OPTIONS" : [],
+	"UIC_SEARCH_PATHS" : [],
+	"UIC_SKIP" : [],
+	"UIC_UI_FILES" : [],
+	"VERBOSITY" : 0
+}
