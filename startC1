@@ -10,7 +10,7 @@ sleep 2
 
 (cd Viewer; ./Viewer --autoconnect) &
 
-sleep 5
+sleep 3
 
 (cd pClient; ./s1.sh)
 

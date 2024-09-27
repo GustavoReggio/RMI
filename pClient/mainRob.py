@@ -27,7 +27,7 @@ class PIDController:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(1, 0.0, 1)
+        self.pid_controller = PIDController(1.5, 0.0, 0.2)
         self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
@@ -87,6 +87,7 @@ class MyRob(CRobLinkAngs):
         left_id = 1
         right_id = 2
         back_id = 3
+        base_velocity = 0.1
 
         current_time = time.time()
         dt = current_time - self.last_time
@@ -97,26 +98,21 @@ class MyRob(CRobLinkAngs):
 
         left_proximity = self.measures.irSensor[left_id]
         right_proximity = self.measures.irSensor[right_id]
-        front_proximity = self.measures.irSensor[center_id]
-        back_proximity = self.measures.irSensor[back_id]        
 
         error = right_proximity-left_proximity
 
         pid_output = self.pid_controller.compute(error, dt)
         print(pid_output)
-        if front_proximity > 5:
-            print("Reverse")
-            self.driveMotors(-0.1,-0.1)
+
+        if error > 1:
+            print('Rotate left')
+            self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
+        elif error < -1:
+            print ('Rotate right')
+            self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
         else:
-            if error > 1:
-                print('Rotate left')
-                self.driveMotors(max(0.1-pid_output,-0.1),+0.1)
-            elif error < -1:
-                print ('Rotate right')
-                self.driveMotors(+0.1,max(0.1+pid_output,-0.1))
-            else:
-                print('Go')
-                self.driveMotors(0.1,0.1)
+            print('Go')
+            self.driveMotors(base_velocity,base_velocity)
 
 
 class Map():
