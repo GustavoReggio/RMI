@@ -3,13 +3,32 @@ import sys
 from croblink import *
 from math import *
 import xml.etree.ElementTree as ET
+import time
 
 CELLROWS=7
 CELLCOLS=14
 
+class PIDController:
+    def __init__(self, kp, ki, kd, setpoint=0):
+        self.kp = kp  # Proportional gain
+        self.ki = ki  # Integral gain
+        self.kd = kd  # Derivative gain
+        self.setpoint = setpoint  # Desired value (target)
+        self.previous_error = 0  # Last error (for derivative)
+        self.integral = 0  # Sum of errors (for integral)
+
+    def compute(self, error, dt):
+        self.integral += error * dt
+        derivative = (error - self.previous_error) / dt
+        self.previous_error = error
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        return output
+
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
+        self.pid_controller = PIDController(1, 0.0, 1)
+        self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -27,6 +46,7 @@ class MyRob(CRobLinkAngs):
 
         state = 'stop'
         stopped_state = 'run'
+        self.last_time = time.time()
 
         while True:
             self.readSensors()
@@ -62,46 +82,42 @@ class MyRob(CRobLinkAngs):
                     self.setReturningLed(False)
                 self.wander()
             
-
     def wander(self):
         center_id = 0
         left_id = 1
         right_id = 2
         back_id = 3
 
-        max_velocity = 0.1
-        max_proximity_allowed = 5
+        current_time = time.time()
+        dt = current_time - self.last_time
+        self.last_time = current_time
 
-        p_value = 1
-        i_value = 0
-        d_value = 0
+        if dt <= 0:
+            dt = 0.01
 
         left_proximity = self.measures.irSensor[left_id]
         right_proximity = self.measures.irSensor[right_id]
         front_proximity = self.measures.irSensor[center_id]
-        back_proximity = self.measures.irSensor[back_id]
+        back_proximity = self.measures.irSensor[back_id]        
 
         error = right_proximity-left_proximity
-        delta_error = error-last_error
-        accumulated_error = accumulated_error + error
 
-        pid_error = p_value * error + d_value * delta_error + i_value * accumulated_error
-
-        desired_velocity = ((-2*max_velocity)/(2*max_proximity_allowed))*(max_proximity_allowed-pid_error)+max_velocity
-
+        pid_output = self.pid_controller.compute(error, dt)
+        print(pid_output)
         if front_proximity > 5:
             print("Reverse")
             self.driveMotors(-0.1,-0.1)
         else:
             if error > 1:
                 print('Rotate left')
-                self.driveMotors(max(desired_velocity,-0.1),+0.1)
+                self.driveMotors(max(0.1-pid_output,-0.1),+0.1)
             elif error < -1:
                 print ('Rotate right')
-                self.driveMotors(+0.1,max(desired_velocity,-0.1))
+                self.driveMotors(+0.1,max(0.1+pid_output,-0.1))
             else:
                 print('Go')
                 self.driveMotors(0.1,0.1)
+
 
 class Map():
     def __init__(self, filename):
@@ -135,8 +151,6 @@ rob_name = "pClient1"
 host = "localhost"
 pos = 1
 mapc = None
-last_error = 0
-accumulated_error = 0   
 
 for i in range(1, len(sys.argv),2):
     if (sys.argv[i] == "--host" or sys.argv[i] == "-h") and i != len(sys.argv) - 1:
