@@ -48,10 +48,33 @@ class MyRob(CRobLinkAngs):
                 if self.measures.visitingLed==True:
                     state='wait'
                 if self.measures.ground==0:
+                    print(self.measures.ground)
                     print('base 1')
                     self.setVisitingLed(True);
+                if self.measures.ground==1:
+                    print('base 2')
+                    self.setVisitingLed(True);
+                elif self.measures.ground==2:
+                    print('base 3')
+                    self.setVisitingLed(True);
                 self.wander()
+                
             elif state=='wait':
+
+                #########################
+                #time.sleep(0.5)
+                #self.driveMotors(-1,-1)
+                # if self.measures.ground==0:
+                #     print(self.measures.ground)
+                #     print('base 1')
+                #     self.setVisitingLed(True);
+                # elif self.measures.ground==1:
+                #     print('base 2')
+                #     self.setVisitingLed(True);
+                # elif self.measures.ground==2:
+                #     print('base 3')
+                #     self.setVisitingLed(True);
+                #########################
                 self.setReturningLed(True)
                 if self.measures.visitingLed==True:
                     self.setVisitingLed(False)
@@ -59,8 +82,8 @@ class MyRob(CRobLinkAngs):
                     state='return'
                     print('returning!!!')
                 self.driveMotors(0.0,0.0)
-                #time.sleep(0.5)
-                #self.driveMotors(-1,-1)
+
+                
             elif state=='return':
                 if self.measures.visitingLed==True:
                     self.setVisitingLed(False)
@@ -74,6 +97,7 @@ class MyRob(CRobLinkAngs):
         left_id = 1
         right_id = 2
         back_id = 3
+        commun_dist = 1
 
         
         #print(self.measures.irSensor[center_id])
@@ -110,10 +134,16 @@ class MyRob(CRobLinkAngs):
         elif self.measures.irSensor[left_id]> 4.5 and self.measures.irSensor[back_id] < 4.0:
             print('virada direita brusca')
             self.driveMotors(-0.06,-0.02)
+        
+        elif self.measures.irSensor[left_id] < commun_dist and self.measures.irSensor[right_id] < commun_dist and self.measures.irSensor[center_id] < commun_dist and self.measures.irSensor[back_id] < commun_dist:
+            self.driveMotors(0.05,0.05)
+            print('encruzilhada!!!')
 
         else:
             #print('Go')
             self.driveMotors(0.05,0.05)
+            #print(self.measures.groundReady)
+            #print(self.measures.ground)
 
 class Map():
     def __init__(self, filename):
