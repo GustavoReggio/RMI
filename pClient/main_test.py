@@ -74,7 +74,7 @@ class PIDController:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(1.5, 0.0, 0.2)
+        self.pid_controller = PIDController(1.5, 4.0, 0.6)
         self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
@@ -180,10 +180,10 @@ class MyRob(CRobLinkAngs):
         pid_output = self.pid_controller.compute(error, dt)
         #print(pid_output)
 
-        if error > 1:
+        if error > 0.75:
             #print('Rotate left')
             self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
-        elif error < -1:
+        elif error < -0.75:
             #print ('Rotate right')
             self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
         elif filtered_left_value < commun_dist and filtered_right_value < commun_dist and filtered_center_value < commun_dist and self.measures.irSensor[back_id] < commun_dist:
