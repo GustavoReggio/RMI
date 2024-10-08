@@ -3,6 +3,7 @@ import sys
 from croblink import *
 from math import *
 import xml.etree.ElementTree as ET
+import statistics
 import time
 
 CELLROWS=7
@@ -17,11 +18,15 @@ class FilterSensor_left:
 
     def add_value_l(self, new_value):
         if len(self.values) >= self.amostragem:
-            self.values.pop(0)  
+            self.values.pop(0)  #pop remove o valor mais antigo === FIFO
         self.values.append(new_value)
+        #sensor_l_string = self.values
+        #return sensor_l_string
+        return self.values
 
     def get_filtered_value_l(self):
-        return sum(self.values) / len(self.values) if self.values else 0
+        #return sum(self.values) / len(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 0
 
 filter_ir_sensor_l = FilterSensor_left(amostragem=5)
 
@@ -34,9 +39,14 @@ class FilterSensor_right:
         if len(self.values) >= self.amostragem:
             self.values.pop(0)  
         self.values.append(new_value)
+        #sensor_r_string = self.values
+        #return sensor_r_string
+        return self.values
+
 
     def get_filtered_value_r(self):
-        return sum(self.values) / len(self.values) if self.values else 0
+        #return sum(self.values) / len(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 0
 
 filter_ir_sensor_r = FilterSensor_right(amostragem=5)
 
@@ -49,9 +59,13 @@ class FilterSensor_center:
         if len(self.values) >= self.amostragem:
             self.values.pop(0)  
         self.values.append(new_value)
+        #sensor_c_string = self.values
+        #return sensor_c_string
+        return self.values
 
     def get_filtered_value_c(self):
-        return sum(self.values) / len(self.values) if self.values else 0
+        #return sum(self.values) / len(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 0
 
 filter_ir_sensor_c = FilterSensor_center(amostragem=5)
 #############################################################################
@@ -149,7 +163,9 @@ class MyRob(CRobLinkAngs):
         right_id = 2
         back_id = 3
         base_velocity = 0.1
-        commun_dist = 1
+        speed_velocity = 1.5
+        # Para identificar no crusamento
+        commun_dist = 0.576
 
         current_time = time.time()
         dt = current_time - self.last_time
@@ -163,7 +179,32 @@ class MyRob(CRobLinkAngs):
         
         filtered_left_value = filter_ir_sensor_l.get_filtered_value_l()
         filtered_right_value = filter_ir_sensor_r.get_filtered_value_r()
-        filtered_center_value = filter_ir_sensor_c.get_filtered_value_c()       
+        filtered_center_value = filter_ir_sensor_c.get_filtered_value_c()    
+
+        # Pegar a copia da sting do sensor para usar no crusamento
+        #sensor_string_c = filter_ir_sensor_c.add_value_c()
+        sensor_string_c = filter_ir_sensor_c.values
+        #sensor_string_l = filter_ir_sensor_l.add_value_l()
+        sensor_string_l = filter_ir_sensor_l.values
+        sensor_string_r = filter_ir_sensor_r.values
+        
+
+        if len(sensor_string_c) > 4:
+            last_value_c = sensor_string_c[4]  
+        else:
+            last_value_c = sensor_string_c[-1] 
+        
+        
+        if len(sensor_string_l) > 4:
+            last_value_l = sensor_string_l[4]  
+        else:
+            last_value_l = sensor_string_l[-1] 
+        
+        if len(sensor_string_r) > 4:
+            last_value_r = sensor_string_r[4]  
+        else:
+            last_value_r = sensor_string_r[-1]   
+            
 
 
         if dt <= 0:
@@ -186,9 +227,13 @@ class MyRob(CRobLinkAngs):
         elif error < -0.75:
             #print ('Rotate right')
             self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
-        elif filtered_left_value < commun_dist and filtered_right_value < commun_dist and filtered_center_value < commun_dist and self.measures.irSensor[back_id] < commun_dist:
-            self.driveMotors(base_velocity*5,base_velocity*5)
-            print('encruzilhada!!!')
+        # elif filtered_left_value < commun_dist and filtered_right_value < commun_dist and filtered_center_value < commun_dist and self.measures.irSensor[back_id] < commun_dist:
+        #     self.driveMotors(base_velocity*5,base_velocity*5)
+        #     print('encruzilhada!!!')
+        elif last_value_c < commun_dist and last_value_l < commun_dist and last_value_r < commun_dist:
+            print('cruzamento')
+            self.driveMotors(speed_velocity,speed_velocity)
+
         else:
             #print('Go')
             self.driveMotors(base_velocity,base_velocity)
