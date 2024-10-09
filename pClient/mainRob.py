@@ -27,7 +27,7 @@ class PIDController:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(2.0, 0.0, 0.75)
+        self.pid_controller = PIDController(0.25, 0.0, 0.0)
         self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
