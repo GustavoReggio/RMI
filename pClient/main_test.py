@@ -5,6 +5,8 @@ from math import *
 import xml.etree.ElementTree as ET
 import statistics
 import time
+import os
+
 
 CELLROWS=7
 CELLCOLS=14
@@ -100,6 +102,14 @@ class MyRob(CRobLinkAngs):
         for l in reversed(self.labMap):
             print(''.join([str(l) for l in l]))
 
+    def printData(sensor_data):
+        print("\033[H", end="")  # Move o cursor para o topo da tela
+        print("Sensores")
+        print("=====================")
+        for sensor, value in sensor_data.items():
+            print(f"{sensor}: {value}")
+
+
     def run(self):
         if self.status != 0:
             print("Connection refused or error")
@@ -127,21 +137,25 @@ class MyRob(CRobLinkAngs):
                 if self.measures.visitingLed==True:
                     state='wait'
 
+                #____________________# 
                 # TESTATANDO BASES
                 if self.measures.ground==0:
                     print(self.measures.ground)
-                    print('base 1')
+                    #print('base 1')
+                    self.base = '0'
                     #self.setVisitingLed(True);
                 if self.measures.ground==1:
                     print(self.measures.ground)
-                    print('base 2')
+                    #print('base 2')
                     #self.setVisitingLed(True);
+                    self.base = '1'
                 elif self.measures.ground==2:
                     print(self.measures.ground)
-                    print('base 3')
+                    #print('base 3')
                     #self.setVisitingLed(True)
-
-                #____________________#                    
+                    self.base = '2'
+                #____________________#        
+                            
                 self.wander()
             elif state=='wait':
                 self.setReturningLed(True)
@@ -187,6 +201,19 @@ class MyRob(CRobLinkAngs):
         #sensor_string_l = filter_ir_sensor_l.add_value_l()
         sensor_string_l = filter_ir_sensor_l.values
         sensor_string_r = filter_ir_sensor_r.values
+
+
+        sensor_data = {
+            "Sensor data Left" :sensor_string_l,
+            "Sensor left" :filtered_left_value,
+            "Sensor data Right" :sensor_string_r,
+            "Sensor Right" :filtered_right_value,
+            "Sensor data Center" :sensor_string_c,
+            "Sensor Center" :filtered_center_value,
+            "Base":self.base,
+            "Crusamento" : self.crusamento,
+        }
+        MyRob.printData(sensor_data)
         
 
         if len(sensor_string_c) > 4:
@@ -224,19 +251,23 @@ class MyRob(CRobLinkAngs):
         if error > 0.75:
             #print('Rotate left')
             self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
+            self.crusamento = '-'
         elif error < -0.75:
             #print ('Rotate right')
             self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
+            self.crusamento = '-'
         # elif filtered_left_value < commun_dist and filtered_right_value < commun_dist and filtered_center_value < commun_dist and self.measures.irSensor[back_id] < commun_dist:
         #     self.driveMotors(base_velocity*5,base_velocity*5)
         #     print('encruzilhada!!!')
         elif last_value_c < commun_dist and last_value_l < commun_dist and last_value_r < commun_dist:
-            print('cruzamento')
+            #print('cruzamento')
+            self.crusamento = 'crusamento'
             self.driveMotors(speed_velocity,speed_velocity)
 
         else:
             #print('Go')
             self.driveMotors(base_velocity,base_velocity)
+            self.crusamento = '-'
 
 
 class Map():
