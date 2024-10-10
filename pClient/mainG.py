@@ -1,17 +1,98 @@
 
 import sys
-from croblinkG import *
+from croblink import *
 from math import *
 import xml.etree.ElementTree as ET
-
+import statistics
 import time
 
 CELLROWS=7
 CELLCOLS=14
 
+
+# Filtros
+###################################################################
+class FilterSensor_left:
+    def __init__(self, amostragem):
+        self.amostragem = amostragem
+        self.values = []
+
+    def add_value_l(self, new_value):
+        if len(self.values) >= self.amostragem:
+            self.values.pop(0)  #pop remove o valor mais antigo === FIFO
+        self.values.append(new_value)
+        #sensor_l_string = self.values
+        #return sensor_l_string
+        return self.values
+
+    def get_filtered_value_l(self):
+        #return sum(self.values) / len(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 0
+
+filter_ir_sensor_l = FilterSensor_left(amostragem=5)
+
+class FilterSensor_right:
+    def __init__(self, amostragem):
+        self.amostragem = amostragem
+        self.values = []
+
+    def add_value_r(self, new_value):
+        if len(self.values) >= self.amostragem:
+            self.values.pop(0)  
+        self.values.append(new_value)
+        #sensor_r_string = self.values
+        #return sensor_r_string
+        return self.values
+
+
+    def get_filtered_value_r(self):
+        #return sum(self.values) / len(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 0
+
+filter_ir_sensor_r = FilterSensor_right(amostragem=5)
+
+class FilterSensor_center:
+    def __init__(self, amostragem):
+        self.amostragem = amostragem
+        self.values = []
+
+    def add_value_c(self, new_value):
+        if len(self.values) >= self.amostragem:
+            self.values.pop(0)  
+        self.values.append(new_value)
+        #sensor_c_string = self.values
+        #return sensor_c_string
+        return self.values
+
+    def get_filtered_value_c(self):
+        #return sum(self.values) / len(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 0
+
+filter_ir_sensor_c = FilterSensor_center(amostragem=5)
+#############################################################################
+
+
+class PIDController:
+    def __init__(self, kp, ki, kd, setpoint=0):
+        self.kp = kp  # Proportional gain
+        self.ki = ki  # Integral gain
+        self.kd = kd  # Derivative gain
+        self.setpoint = setpoint  # Desired value (target)
+        self.previous_error = 0  # Last error (for derivative)
+        self.integral = 0  # Sum of errors (for integral)
+
+    def compute(self, error, dt):
+        self.integral += error * dt
+        derivative = (error - self.previous_error) / dt
+        self.previous_error = error
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        return output
+
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
+        self.pid_controller = PIDController(0.25, 0.0, 0.0)
+        self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -22,6 +103,14 @@ class MyRob(CRobLinkAngs):
         for l in reversed(self.labMap):
             print(''.join([str(l) for l in l]))
 
+    def printData(sensor_data):
+        print("\033[H", end="")  # Move o cursor para o topo da tela
+        print("Sensores")
+        print("=====================")
+        for sensor, value in sensor_data.items():
+            print(f"{sensor}: {value}")
+
+
     def run(self):
         if self.status != 0:
             print("Connection refused or error")
@@ -29,6 +118,7 @@ class MyRob(CRobLinkAngs):
 
         state = 'stop'
         stopped_state = 'run'
+        self.last_time = time.time()
 
         while True:
             self.readSensors()
@@ -47,43 +137,37 @@ class MyRob(CRobLinkAngs):
             if state == 'run':
                 if self.measures.visitingLed==True:
                     state='wait'
-                if self.measures.ground==0:
-                    print(self.measures.ground)
-                    print('base 1')
-                    self.setVisitingLed(True);
-                if self.measures.ground==1:
-                    print('base 2')
-                    self.setVisitingLed(True);
-                elif self.measures.ground==2:
-                    print('base 3')
-                    self.setVisitingLed(True);
-                self.wander()
-                
-            elif state=='wait':
-
-                #########################
-                #time.sleep(0.5)
-                #self.driveMotors(-1,-1)
+                #____________________# 
+                # TESTATANDO BASES
                 # if self.measures.ground==0:
-                #     print(self.measures.ground)
-                #     print('base 1')
-                #     self.setVisitingLed(True);
-                # elif self.measures.ground==1:
-                #     print('base 2')
-                #     self.setVisitingLed(True);
+                #     #print(self.measures.ground)
+                #     #print('base 1')
+                #     self.base = '1'
+                #     #self.setVisitingLed(True);
+                # if self.measures.ground==1:
+                #     #print(self.measures.ground)
+                #     #print('base 2')
+                #     #self.setVisitingLed(True);
+                #     self.base = '2'
                 # elif self.measures.ground==2:
-                #     print('base 3')
-                #     self.setVisitingLed(True);
-                #########################
+                #     #print(self.measures.ground)
+                #     #print('base 3')
+                #     #self.setVisitingLed(True)
+                #     self.base = '3'
+                if self.measures.ground != -1:
+                    self.base = self.measures.ground + 1
+                else:
+                    self.base = '-'
+                #____________________#
+                
+                self.wander()
+            elif state=='wait':
                 self.setReturningLed(True)
                 if self.measures.visitingLed==True:
                     self.setVisitingLed(False)
                 if self.measures.returningLed==True:
                     state='return'
-                    print('returning!!!')
                 self.driveMotors(0.0,0.0)
-
-                
             elif state=='return':
                 if self.measures.visitingLed==True:
                     self.setVisitingLed(False)
@@ -91,59 +175,110 @@ class MyRob(CRobLinkAngs):
                     self.setReturningLed(False)
                 self.wander()
             
-
     def wander(self):
         center_id = 0
         left_id = 1
         right_id = 2
         back_id = 3
-        commun_dist = 1
+        base_velocity = 0.15
+        danger_walls = 1.8
+        danger_front = 0.95
+        # Para identificar no crusamento
+        commun_dist = 0.576
 
+        current_time = time.time()
+        dt = current_time - self.last_time
+        self.last_time = current_time
+
+        filter_ir_sensor_c.add_value_c(self.measures.irSensor[center_id])
+        filter_ir_sensor_l.add_value_l(self.measures.irSensor[left_id])
+        filter_ir_sensor_r.add_value_r(self.measures.irSensor[right_id])        
         
-        #print(self.measures.irSensor[center_id])
-#        if    self.measures.irSensor[center_id] > 5.0\
-#           or self.measures.irSensor[left_id]   > 5.0\
-#           or self.measures.irSensor[right_id]  > 5.0\
-#           or self.measures.irSensor[back_id]   > 5.0:
-            #print('Rotate left')
-#             self.driveMotors(-0.05,+0.05)
-        
-        # Virar para a esquerda
-        if    self.measures.irSensor[center_id] > 4.0 and self.measures.irSensor[left_id]   < self.measures.irSensor[right_id] :
-            #print('Rotate left')
-            self.driveMotors(-0.05,+0.05)
+        filtered_left_value = filter_ir_sensor_l.get_filtered_value_l()
+        filtered_right_value = filter_ir_sensor_r.get_filtered_value_r()
+        filtered_center_value = filter_ir_sensor_c.get_filtered_value_c()    
 
-        # Virar para a direita
-        elif    self.measures.irSensor[center_id] > 4.0 and self.measures.irSensor[left_id]   > self.measures.irSensor[right_id]:
-            #print('Rotate left')
-            self.driveMotors(+0.05,-0.05)
+        # Pegar a copia da sting do sensor para usar no crusamento
+        #sensor_string_c = filter_ir_sensor_c.add_value_c()
+        sensor_string_c = filter_ir_sensor_c.values
+        #sensor_string_l = filter_ir_sensor_l.add_value_l()
+        sensor_string_l = filter_ir_sensor_l.values
+        sensor_string_r = filter_ir_sensor_r.values
 
 
-        elif self.measures.irSensor[left_id]> 2.0:
-            #print('Rotate slowly right')
-            self.driveMotors(0.06,0.05)
-        elif self.measures.irSensor[right_id]> 2.0:
-            #print('Rotate slowly left')
-            self.driveMotors(0.05,0.06)
-
-        
-        elif self.measures.irSensor[right_id]> 4.5 and  self.measures.irSensor[back_id] < 4.0:
-            print('virada esquerda brusca')
-            self.driveMotors(-0.02,-0.06)
-        
-        elif self.measures.irSensor[left_id]> 4.5 and self.measures.irSensor[back_id] < 4.0:
-            print('virada direita brusca')
-            self.driveMotors(-0.06,-0.02)
-        
-        elif self.measures.irSensor[left_id] < commun_dist and self.measures.irSensor[right_id] < commun_dist and self.measures.irSensor[center_id] < commun_dist and self.measures.irSensor[back_id] < commun_dist:
-            self.driveMotors(0.05,0.05)
-            print('encruzilhada!!!')
-
+        if len(sensor_string_c) > 4:
+            last_value_c = sensor_string_c[4]  
         else:
-            #print('Go')
-            self.driveMotors(0.05,0.05)
-            #print(self.measures.groundReady)
-            #print(self.measures.ground)
+            last_value_c = sensor_string_c[-1]         
+        
+        if len(sensor_string_l) > 4:
+            last_value_l = sensor_string_l[4]  
+        else:
+            last_value_l = sensor_string_l[-1] 
+        
+        if len(sensor_string_r) > 4:
+            last_value_r = sensor_string_r[4]  
+        else:
+            last_value_r = sensor_string_r[-1]   
+
+        if dt <= 0:
+            dt = 0.01
+
+        # front_proximity = self.measures.irSensor[center_id]
+        # left_proximity = self.measures.irSensor[left_id]
+        # right_proximity = self.measures.irSensor[right_id]
+
+        front_proximity = filtered_center_value 
+        left_proximity = filtered_left_value
+        right_proximity = filtered_right_value
+
+        #print('Front: '+str(front_proximity)+' Left: '+str(left_proximity)+' Right: '+str(right_proximity)+' Colision: '+str(self.measures.collision))
+
+        error = right_proximity-left_proximity
+
+        pid_output = self.pid_controller.compute(error, dt)
+        #print(pid_output)
+
+        if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
+            #print('Crossway')
+            self.situation = 'Crossway'
+            self.driveMotors(base_velocity,base_velocity)
+        elif front_proximity > danger_front:
+            if error > 0:
+                #print('Sharp left')
+                self.situation = 'Sharp Left'
+                self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
+            elif error < 0:
+                #print ('Sharp right')
+                self.situation = 'Sharp right'
+                self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
+        else:
+            if error > 1.0:
+                #print('Smooth left')
+                self.situation = 'Smooth left'
+                self.driveMotors(max(base_velocity - pid_output,-0),+base_velocity)
+            elif error < -1.0:
+                #print ('Smooth right')
+                self.situation = 'Smooth right'
+                self.driveMotors(+base_velocity,max(base_velocity+pid_output,-0))
+            else:
+                #print('Go')
+                self.situation = 'Go'
+                self.driveMotors(base_velocity,base_velocity)
+            
+        sensor_data = {
+            "Sensor data Left" :sensor_string_l,
+            "Sensor left" :filtered_left_value,
+            "Sensor data Right" :sensor_string_r,
+            "Sensor Right" :filtered_right_value,
+            "Sensor data Center" :sensor_string_c,
+            "Sensor Center" :filtered_center_value,
+            "Base":self.base,
+            "situação" : self.situation,
+        }
+        MyRob.printData(sensor_data)
+
+
 
 class Map():
     def __init__(self, filename):
