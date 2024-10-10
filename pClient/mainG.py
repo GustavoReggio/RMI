@@ -27,7 +27,7 @@ class FilterSensor_left:
 
     def get_filtered_value_l(self):
         #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 2.0
 
 filter_ir_sensor_l = FilterSensor_left(amostragem=5)
 
@@ -47,7 +47,7 @@ class FilterSensor_right:
 
     def get_filtered_value_r(self):
         #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 2.0
 
 filter_ir_sensor_r = FilterSensor_right(amostragem=5)
 
@@ -66,7 +66,7 @@ class FilterSensor_center:
 
     def get_filtered_value_c(self):
         #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 0
+        return statistics.median(self.values) if self.values else 0.6
 
 filter_ir_sensor_c = FilterSensor_center(amostragem=5)
 #############################################################################
@@ -206,31 +206,36 @@ class MyRob(CRobLinkAngs):
         sensor_string_r = filter_ir_sensor_r.values
 
 
-        if len(sensor_string_c) > 4:
-            last_value_c = sensor_string_c[4]  
-        else:
-            last_value_c = sensor_string_c[-1]         
         
-        if len(sensor_string_l) > 4:
-            last_value_l = sensor_string_l[4]  
-        else:
-            last_value_l = sensor_string_l[-1] 
-        
-        if len(sensor_string_r) > 4:
-            last_value_r = sensor_string_r[4]  
-        else:
-            last_value_r = sensor_string_r[-1]   
+        # last_value_c = sensor_string_c[-1]         
+        # last_value_l = sensor_string_l[-1] 
+        # last_value_r = sensor_string_r[-1]
+        last_value_c = self.measures.irSensor[center_id]         
+        last_value_l = self.measures.irSensor[left_id] 
+        last_value_r = self.measures.irSensor[right_id] 
 
         if dt <= 0:
             dt = 0.01
+        
+        # Em casos de curvas
+        if last_value_c > filtered_center_value + 0.4 or last_value_c < filtered_center_value + 0.4:
+            front_proximity = last_value_c
+        else:
+            front_proximity = filtered_center_value    
+
+        if last_value_r > filtered_right_value + 1.0 or last_value_r < filtered_right_value - 1.0:
+            right_proximity = last_value_r
+        else:
+            right_proximity = filtered_right_value
+
+        if last_value_l > filtered_left_value + 1.0 or last_value_l < filtered_left_value - 1.0:
+            left_proximity = last_value_l
+        else:
+            left_proximity = filtered_left_value
 
         # front_proximity = self.measures.irSensor[center_id]
         # left_proximity = self.measures.irSensor[left_id]
         # right_proximity = self.measures.irSensor[right_id]
-
-        front_proximity = filtered_center_value 
-        left_proximity = filtered_left_value
-        right_proximity = filtered_right_value
 
         #print('Front: '+str(front_proximity)+' Left: '+str(left_proximity)+' Right: '+str(right_proximity)+' Colision: '+str(self.measures.collision))
 
