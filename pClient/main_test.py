@@ -90,7 +90,7 @@ class PIDController:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(1.5, 4.0, 0.6)
+        self.pid_controller = PIDController(0.25, 0.0, 0.0)
         self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
@@ -203,24 +203,10 @@ class MyRob(CRobLinkAngs):
         sensor_string_r = filter_ir_sensor_r.values
 
 
-        sensor_data = {
-            "Sensor data Left" :sensor_string_l,
-            "Sensor left" :filtered_left_value,
-            "Sensor data Right" :sensor_string_r,
-            "Sensor Right" :filtered_right_value,
-            "Sensor data Center" :sensor_string_c,
-            "Sensor Center" :filtered_center_value,
-            "Base":self.base,
-            "Crusamento" : self.crusamento,
-        }
-        MyRob.printData(sensor_data)
-        
-
         if len(sensor_string_c) > 4:
             last_value_c = sensor_string_c[4]  
         else:
-            last_value_c = sensor_string_c[-1] 
-        
+            last_value_c = sensor_string_c[-1]         
         
         if len(sensor_string_l) > 4:
             last_value_l = sensor_string_l[4]  
@@ -231,9 +217,9 @@ class MyRob(CRobLinkAngs):
             last_value_r = sensor_string_r[4]  
         else:
             last_value_r = sensor_string_r[-1]   
-            
-
-
+        
+                
+ 
         if dt <= 0:
             dt = 0.01
 
@@ -268,6 +254,19 @@ class MyRob(CRobLinkAngs):
             #print('Go')
             self.driveMotors(base_velocity,base_velocity)
             self.crusamento = '-'
+        
+        sensor_data = {
+            "Sensor data Left" :sensor_string_l,
+            "Sensor left" :filtered_left_value,
+            "Sensor data Right" :sensor_string_r,
+            "Sensor Right" :filtered_right_value,
+            "Sensor data Center" :sensor_string_c,
+            "Sensor Center" :filtered_center_value,
+            "Base":self.base,
+            "Crusamento" : self.crusamento,
+        }
+        MyRob.printData(sensor_data)
+
 
 
 class Map():
