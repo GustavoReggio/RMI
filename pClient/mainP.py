@@ -26,7 +26,7 @@ class PIDController:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(0.25, 0.0, 0.0)
+        self.pid_controller = PIDController(0.25, 0.0, 0.355)
         self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
@@ -107,6 +107,11 @@ class MyRob(CRobLinkAngs):
 
         pid_output = self.pid_controller.compute(error, dt)
         #print(pid_output)
+
+        # if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
+        #     left_proximity = 1/0.9
+        #     right_proximity = 1/0.9 
+        #     print('Crossway')
 
         if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
             print('Crossway')

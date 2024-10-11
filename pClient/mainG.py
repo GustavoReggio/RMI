@@ -27,7 +27,7 @@ class FilterSensor_left:
 
     def get_filtered_value_l(self):
         #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 2.0
+        return statistics.median(self.values) if self.values else 1/0.9
 
 filter_ir_sensor_l = FilterSensor_left(amostragem=5)
 
@@ -47,7 +47,7 @@ class FilterSensor_right:
 
     def get_filtered_value_r(self):
         #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 2.0
+        return statistics.median(self.values) if self.values else 1/0.9
 
 filter_ir_sensor_r = FilterSensor_right(amostragem=5)
 
@@ -66,7 +66,7 @@ class FilterSensor_center:
 
     def get_filtered_value_c(self):
         #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 0.6
+        return statistics.median(self.values) if self.values else 1/1.6
 
 filter_ir_sensor_c = FilterSensor_center(amostragem=5)
 #############################################################################
@@ -218,17 +218,17 @@ class MyRob(CRobLinkAngs):
             dt = 0.01
         
         # Em casos de curvas
-        if last_value_c > filtered_center_value + 0.4 or last_value_c < filtered_center_value + 0.4:
+        if (last_value_c > filtered_center_value + 1/0.4) | (last_value_c < filtered_center_value + 1/0.4):
             front_proximity = last_value_c
         else:
             front_proximity = filtered_center_value    
 
-        if last_value_r > filtered_right_value + 1.0 or last_value_r < filtered_right_value - 1.0:
+        if (last_value_r > filtered_right_value + 1/0.8) | (last_value_r < filtered_right_value - 1/0.8):
             right_proximity = last_value_r
         else:
             right_proximity = filtered_right_value
 
-        if last_value_l > filtered_left_value + 1.0 or last_value_l < filtered_left_value - 1.0:
+        if (last_value_l > filtered_left_value + 1/0.8) | (last_value_l < filtered_left_value - 1/0.8):
             left_proximity = last_value_l
         else:
             left_proximity = filtered_left_value
@@ -243,6 +243,11 @@ class MyRob(CRobLinkAngs):
 
         pid_output = self.pid_controller.compute(error, dt)
         #print(pid_output)
+
+        # if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
+        #     left_proximity = 1/0.9
+        #     right_proximity = 1/0.9 
+        #     self.situation = 'Crossway'
 
         if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
             #print('Crossway')
