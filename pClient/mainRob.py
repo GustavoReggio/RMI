@@ -88,8 +88,8 @@ class MyRob(CRobLinkAngs):
         right_id = 2
         back_id = 3
         base_velocity = 0.15
-        danger_walls = 1.8
-        danger_front = 0.95
+        danger_walls = 1.83
+        danger_front = 0.85
 
         current_time = time.time()
         dt = current_time - self.last_time
@@ -102,6 +102,9 @@ class MyRob(CRobLinkAngs):
         left_proximity = self.measures.irSensor[left_id]
         right_proximity = self.measures.irSensor[right_id]
 
+        #front_distance = 1 / front_proximity
+        #left_distance = 1 / left_proximity
+        #right_distnce = 1 / right_proximity
         print('Front: '+str(front_proximity)+' Left: '+str(left_proximity)+' Right: '+str(right_proximity)+' Colision: '+str(self.measures.collision))
 
         error = right_proximity-left_proximity
