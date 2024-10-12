@@ -82,13 +82,11 @@ class MyRob(CRobLinkAngs):
                 self.wander()
             
     def wander(self):
-        back_left_id = 0
-        front_left_id = 1
-        front_right_id = 2
-        back_right_id = 3
+        middle_left_id = 0
+        wide_left_id = 1
+        wide_right_id = 2
+        middle_right_id = 3
         base_velocity = 0.15
-        danger_walls = 1.83
-        danger_front = 0.85
 
         current_time = time.time()
         dt = current_time - self.last_time
@@ -97,39 +95,39 @@ class MyRob(CRobLinkAngs):
         if dt <= 0:
             dt = 0.01
 
-        front_left_proximity = self.measures.irSensor[front_left_id]
-        back_left_proximity = self.measures.irSensor[back_left_id]
-        front_right_proximity = self.measures.irSensor[front_right_id]
-        back_right_proximity = self.measures.irSensor[back_right_id]
+        wide_left_proximity = self.measures.irSensor[wide_left_id]
+        middle_left_proximity = self.measures.irSensor[middle_left_id]
+        wide_right_proximity = self.measures.irSensor[wide_right_id]
+        middle_right_proximity = self.measures.irSensor[middle_right_id]
 
         try :
-            front_left_distance = 1 / front_left_proximity
+            wide_left_distance = 1 / wide_left_proximity
         except:
-            front_left_distance = 20
+            wide_left_distance = 20
         try :
-            front_right_distance = 1 / front_right_proximity
+            wide_right_distance = 1 / wide_right_proximity
         except:
-            front_right_distance = 20
+            wide_right_distance = 20
         try :
-            back_left_distance = 1 / back_left_proximity
+            middle_left_distance = 1 / middle_left_proximity
         except:
-            back_left_distance = 20
+            middle_left_distance = 20
         try :
-            back_right_distance = 1 / back_right_proximity
+            middle_right_distance = 1 / middle_right_proximity
         except:
-            back_right_distance = 20
+            middle_right_distance = 20
 
-        print('FL: '+str(front_left_distance)+' FR: '+str(front_right_distance)+' BL: '+str(back_left_distance)+' BR: '+str(back_right_distance))
+        print('FL: '+str(wide_left_distance)+' FR: '+str(wide_right_distance)+' BL: '+str(middle_left_distance)+' BR: '+str(middle_right_distance))
 
-        error1 = front_right_proximity - front_left_proximity
-        error2 = back_right_proximity - back_left_proximity
+        error1 = wide_right_proximity - wide_left_proximity
+        error2 = middle_right_proximity - middle_left_proximity
 
         pid_output1 = self.pid_controller.compute(error1, dt)
         pid_output2 = self.pid_controller.compute(error2, dt)
 
         pid_output = (pid_output1+pid_output2)/2
 
-        if (front_left_distance < 0.6) & (front_right_distance < 0.6):# & (back_left_distance < 0.8) & (back_right_distance < 0.8):
+        if (wide_left_distance < 0.6) & (wide_right_distance < 0.6):# & (middle_left_distance < 0.8) & (middle_right_distance < 0.8):
             if (error1 > 0.75) | (error2 > 0.75):
                 print('Smooth left')
                 self.driveMotors(max(base_velocity - pid_output,-0),+base_velocity)
@@ -139,7 +137,7 @@ class MyRob(CRobLinkAngs):
             else:
                 print('Go')
                 self.driveMotors(base_velocity,base_velocity)
-        elif (front_left_distance > 1.0) & (front_right_distance > 1.0) & (back_left_distance > 1.0) & (back_right_distance > 1.0):
+        elif (wide_left_distance > 1.0) & (wide_right_distance > 1.0) & (middle_left_distance > 1.0) & (middle_right_distance > 1.0):
             print('Crossway')
             self.driveMotors(base_velocity,base_velocity)
         else:
