@@ -151,28 +151,6 @@ class MyRob(CRobLinkAngs):
                 self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
 
         
-        # if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
-        #     print('Crossway')
-        #     self.driveMotors(base_velocity,base_velocity)
-        # elif front_proximity > danger_front:
-        #     if error > 0:
-        #         print('Sharp left')
-        #         self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
-        #     elif error < 0:
-        #         print ('Sharp right')
-        #         self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
-        # else:
-        #     if error > 1.0:
-        #         print('Smooth left')
-        #         self.driveMotors(max(base_velocity - pid_output,-0),+base_velocity)
-        #     elif error < -1.0:
-        #         print ('Smooth right')
-        #         self.driveMotors(+base_velocity,max(base_velocity+pid_output,-0))
-        #     else:
-        #         print('Go')
-        #         self.driveMotors(base_velocity,base_velocity)
-
-
 class Map():
     def __init__(self, filename):
         tree = ET.parse(filename)
