@@ -1,15 +1,33 @@
-
 import sys
 from croblink import *
 from math import *
 import xml.etree.ElementTree as ET
+import time
 
 CELLROWS=7
 CELLCOLS=14
 
+class PIDController:
+    def __init__(self, kp, ki, kd, setpoint=0):
+        self.kp = kp  # Proportional gain
+        self.ki = ki  # Integral gain
+        self.kd = kd  # Derivative gain
+        self.setpoint = setpoint  # Desired value (target)
+        self.previous_error = 0  # Last error (for derivative)
+        self.integral = 0  # Sum of errors (for integral)
+
+    def compute(self, error, dt):
+        self.integral += error * dt
+        derivative = (error - self.previous_error) / dt
+        self.previous_error = error
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        return output
+
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
+        self.pid_controller = PIDController(0.25, 0.0, 0.0)
+        self.last_time = time.time()
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -27,6 +45,7 @@ class MyRob(CRobLinkAngs):
 
         state = 'stop'
         stopped_state = 'run'
+        self.last_time = time.time()
 
         while True:
             self.readSensors()
@@ -62,28 +81,74 @@ class MyRob(CRobLinkAngs):
                     self.setReturningLed(False)
                 self.wander()
             
-
     def wander(self):
-        center_id = 0
-        left_id = 1
-        right_id = 2
-        back_id = 3
-        if    self.measures.irSensor[center_id] > 5.0\
-           or self.measures.irSensor[left_id]   > 5.0\
-           or self.measures.irSensor[right_id]  > 5.0\
-           or self.measures.irSensor[back_id]   > 5.0:
-            print('Rotate left')
-            self.driveMotors(-0.1,+0.1)
-        elif self.measures.irSensor[left_id]> 2.7:
-            print('Rotate slowly right')
-            self.driveMotors(0.1,0.0)
-        elif self.measures.irSensor[right_id]> 2.7:
-            print('Rotate slowly left')
-            self.driveMotors(0.0,0.1)
-        else:
-            print('Go')
-            self.driveMotors(0.1,0.1)
+        middle_left_id = 0
+        wide_left_id = 1
+        wide_right_id = 2
+        middle_right_id = 3
+        base_velocity = 0.15
 
+        current_time = time.time()
+        dt = current_time - self.last_time
+        self.last_time = current_time
+
+        if dt <= 0:
+            dt = 0.01
+
+        wide_left_proximity = self.measures.irSensor[wide_left_id]
+        middle_left_proximity = self.measures.irSensor[middle_left_id]
+        wide_right_proximity = self.measures.irSensor[wide_right_id]
+        middle_right_proximity = self.measures.irSensor[middle_right_id]
+
+        try :
+            wide_left_distance = 1 / wide_left_proximity
+        except:
+            wide_left_distance = 20
+        try :
+            wide_right_distance = 1 / wide_right_proximity
+        except:
+            wide_right_distance = 20
+        try :
+            middle_left_distance = 1 / middle_left_proximity
+        except:
+            middle_left_distance = 20
+        try :
+            middle_right_distance = 1 / middle_right_proximity
+        except:
+            middle_right_distance = 20
+
+        print('FL: '+str(wide_left_distance)+' FR: '+str(wide_right_distance)+' BL: '+str(middle_left_distance)+' BR: '+str(middle_right_distance))
+
+        error1 = wide_right_proximity - wide_left_proximity
+        error2 = middle_right_proximity - middle_left_proximity
+
+        pid_output1 = self.pid_controller.compute(error1, dt)
+        pid_output2 = self.pid_controller.compute(error2, dt)
+
+        pid_output = (pid_output1+pid_output2)/2
+
+        if (wide_left_distance < 0.6) & (wide_right_distance < 0.6):# & (middle_left_distance < 0.8) & (middle_right_distance < 0.8):
+            if (error1 > 0.75) | (error2 > 0.75):
+                print('Smooth left')
+                self.driveMotors(max(base_velocity - pid_output,-0),+base_velocity)
+            elif (error1 < -0.75) | (error2 < -0.75):
+                print ('Smooth right')
+                self.driveMotors(+base_velocity,max(base_velocity+pid_output,-0))
+            else:
+                print('Go')
+                self.driveMotors(base_velocity,base_velocity)
+        elif (wide_left_distance > 1.0) & (wide_right_distance > 1.0) & (middle_left_distance > 1.0) & (middle_right_distance > 1.0):
+            print('Crossway')
+            self.driveMotors(base_velocity,base_velocity)
+        else:
+            if error1 > 0:
+                print('Sharp left')
+                self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
+            elif error1 < 0:
+                print ('Sharp right')
+                self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
+
+        
 class Map():
     def __init__(self, filename):
         tree = ET.parse(filename)
@@ -131,7 +196,7 @@ for i in range(1, len(sys.argv),2):
         quit()
 
 if __name__ == '__main__':
-    rob=MyRob(rob_name,pos,[0.0,60.0,-60.0,180.0],host)
+    rob=MyRob(rob_name,pos,[30.0,60.0,-60.0,-30.0],host)
     if mapc != None:
         rob.setMap(mapc.labMap)
         rob.printMap()
