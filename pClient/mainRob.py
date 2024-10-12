@@ -1,4 +1,3 @@
-
 import sys
 from croblink import *
 from math import *
@@ -83,10 +82,10 @@ class MyRob(CRobLinkAngs):
                 self.wander()
             
     def wander(self):
-        center_id = 0
-        left_id = 1
-        right_id = 2
-        back_id = 3
+        back_left_id = 0
+        front_left_id = 1
+        front_right_id = 2
+        back_right_id = 3
         base_velocity = 0.15
         danger_walls = 1.83
         danger_front = 0.85
@@ -98,40 +97,80 @@ class MyRob(CRobLinkAngs):
         if dt <= 0:
             dt = 0.01
 
-        front_proximity = self.measures.irSensor[center_id]
-        left_proximity = self.measures.irSensor[left_id]
-        right_proximity = self.measures.irSensor[right_id]
+        front_left_proximity = self.measures.irSensor[front_left_id]
+        back_left_proximity = self.measures.irSensor[back_left_id]
+        front_right_proximity = self.measures.irSensor[front_right_id]
+        back_right_proximity = self.measures.irSensor[back_right_id]
 
-        #front_distance = 1 / front_proximity
-        #left_distance = 1 / left_proximity
-        #right_distnce = 1 / right_proximity
-        print('Front: '+str(front_proximity)+' Left: '+str(left_proximity)+' Right: '+str(right_proximity)+' Colision: '+str(self.measures.collision))
+        try :
+            front_left_distance = 1 / front_left_proximity
+        except:
+            front_left_distance = 20
+        try :
+            front_right_distance = 1 / front_right_proximity
+        except:
+            front_right_distance = 20
+        try :
+            back_left_distance = 1 / back_left_proximity
+        except:
+            back_left_distance = 20
+        try :
+            back_right_distance = 1 / back_right_proximity
+        except:
+            back_right_distance = 20
 
-        error = right_proximity-left_proximity
+        print('FL: '+str(front_left_distance)+' FR: '+str(front_right_distance)+' BL: '+str(back_left_distance)+' BR: '+str(back_right_distance))
 
-        pid_output = self.pid_controller.compute(error, dt)
-        #print(pid_output)
+        error1 = front_right_proximity - front_left_proximity
+        error2 = back_right_proximity - back_left_proximity
 
-        if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
-            print('Crossway')
-            self.driveMotors(base_velocity,base_velocity)
-        elif front_proximity > danger_front:
-            if error > 0:
-                print('Sharp left')
-                self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
-            elif error < 0:
-                print ('Sharp right')
-                self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
-        else:
-            if error > 1.0:
+        pid_output1 = self.pid_controller.compute(error1, dt)
+        pid_output2 = self.pid_controller.compute(error2, dt)
+
+        pid_output = (pid_output1+pid_output2)/2
+
+        if (front_left_distance < 0.6) & (front_right_distance < 0.6):# & (back_left_distance < 0.8) & (back_right_distance < 0.8):
+            if (error1 > 0.75) | (error2 > 0.75):
                 print('Smooth left')
                 self.driveMotors(max(base_velocity - pid_output,-0),+base_velocity)
-            elif error < -1.0:
+            elif (error1 < -0.75) | (error2 < -0.75):
                 print ('Smooth right')
                 self.driveMotors(+base_velocity,max(base_velocity+pid_output,-0))
             else:
                 print('Go')
                 self.driveMotors(base_velocity,base_velocity)
+        elif (front_left_distance > 1.0) & (front_right_distance > 1.0) & (back_left_distance > 1.0) & (back_right_distance > 1.0):
+            print('Crossway')
+            self.driveMotors(base_velocity,base_velocity)
+        else:
+            if error1 > 0:
+                print('Sharp left')
+                self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
+            elif error1 < 0:
+                print ('Sharp right')
+                self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
+
+        
+        # if (left_proximity < danger_walls) & (right_proximity < danger_walls) & (front_proximity < danger_front): # Crossways logic
+        #     print('Crossway')
+        #     self.driveMotors(base_velocity,base_velocity)
+        # elif front_proximity > danger_front:
+        #     if error > 0:
+        #         print('Sharp left')
+        #         self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
+        #     elif error < 0:
+        #         print ('Sharp right')
+        #         self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
+        # else:
+        #     if error > 1.0:
+        #         print('Smooth left')
+        #         self.driveMotors(max(base_velocity - pid_output,-0),+base_velocity)
+        #     elif error < -1.0:
+        #         print ('Smooth right')
+        #         self.driveMotors(+base_velocity,max(base_velocity+pid_output,-0))
+        #     else:
+        #         print('Go')
+        #         self.driveMotors(base_velocity,base_velocity)
 
 
 class Map():
@@ -181,7 +220,7 @@ for i in range(1, len(sys.argv),2):
         quit()
 
 if __name__ == '__main__':
-    rob=MyRob(rob_name,pos,[0.0,60.0,-60.0,180.0],host)
+    rob=MyRob(rob_name,pos,[30.0,60.0,-60.0,-30.0],host)
     if mapc != None:
         rob.setMap(mapc.labMap)
         rob.printMap()
