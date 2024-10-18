@@ -25,6 +25,7 @@ class MyRob(CRobLinkAngs):
         self.base_velocity = 0.1
         self.visit_locations = []
         self.free_cells = [(0,0)]
+        self.visited_locations = [(0,0)]
         self.path = []
 
 
@@ -73,67 +74,131 @@ class MyRob(CRobLinkAngs):
         print('Center: '+str(center_distance)+' Left: '+str(left_distance)+' Back: '+str(back_distance)+' Right: '+str(right_distance))
 
         #Will we map it only looking forward, or will we map in the direction we are facing?
-        if center_distance < 3:
-            for n in range(center_distance):
-                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
-                if center_distance > 1:
+        if round(self.direction / 10) == 0:
+            if center_distance < 2:
+                for n in range(center_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                    if center_distance > 1:
+                        self.free_cells.append((self.x_position + n + 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n*2 + 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position + 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
                     self.free_cells.append((self.x_position + n + 1, self.y_position))
-            self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n*2 + 1] = '|'
-            if n > 0:
                 self.visit_locations.append((self.x_position + 2, self.y_position))
-        else :
-            for n in range(2):
-                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
-                self.free_cells.append((self.x_position + n + 1, self.y_position))
-            self.visit_locations.append((self.x_position + 2, self.y_position))
 
-        if back_distance < 3:
-            for n in range(back_distance):
-                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
-                if back_distance > 1:
+            if back_distance < 2:
+                for n in range(back_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+                    if back_distance > 1:
+                        self.free_cells.append((self.x_position - n - 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n*2 - 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position - 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
                     self.free_cells.append((self.x_position - n - 1, self.y_position))
-            self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n*2 - 1] = '|'
-            if n > 0:
                 self.visit_locations.append((self.x_position - 2, self.y_position))
-        else :
-            for n in range(2):
-                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
-                self.free_cells.append((self.x_position - n - 1, self.y_position))
-            self.visit_locations.append((self.x_position - 2, self.y_position))
 
-        if left_distance < 3:
-            for n in range(left_distance):
-                self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
-                if left_distance > 1:
+            if left_distance < 2:
+                for n in range(left_distance):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+                    if left_distance > 1:
+                        self.free_cells.append((self.x_position, self.y_position - n - 1))
+                self.discovered_map[self.y_zero + self.y_position - n*2 - 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position - 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
                     self.free_cells.append((self.x_position, self.y_position - n - 1))
-            self.discovered_map[self.y_zero + self.y_position - n*2 - 1][self.x_zero + self.x_position] = '-'
-            if n > 0:
                 self.visit_locations.append((self.x_position, self.y_position - 2))
-        else :
-            for n in range(2):
-                self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
-                self.free_cells.append((self.x_position, self.y_position - n - 1))
-            self.visit_locations.append((self.x_position, self.y_position - 2))
 
-        if right_distance < 3:
-            for n in range(right_distance):
-                self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
-                if right_distance > 1:
+            if right_distance < 2:
+                for n in range(right_distance):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+                    if right_distance > 1:
+                        self.free_cells.append((self.x_position, self.y_position + n + 1))
+                self.discovered_map[self.y_zero + self.y_position + n*2 + 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position + 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
                     self.free_cells.append((self.x_position, self.y_position + n + 1))
-            self.discovered_map[self.y_zero + self.y_position + n*2 + 1][self.x_zero + self.x_position] = '-'
-            if n > 0:
                 self.visit_locations.append((self.x_position, self.y_position + 2))
-        else :
-            for n in range(2):
-                self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
-                self.free_cells.append((self.x_position, self.y_position + n + 1))
-            self.visit_locations.append((self.x_position, self.y_position + 2))
+            self.discovered_map[self.y_zero][self.x_zero] = 'I'
+        
+        elif round(self.direction / 10) == 9:
+            if right_distance < 2:
+                for n in range(right_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                    if right_distance > 1:
+                        self.free_cells.append((self.x_position + n + 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n*2 + 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position + 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                    self.free_cells.append((self.x_position + n + 1, self.y_position))
+                self.visit_locations.append((self.x_position + 2, self.y_position))
+
+            if left_distance < 2:
+                for n in range(left_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+                    if left_distance > 1:
+                        self.free_cells.append((self.x_position - n - 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n*2 - 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position - 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+                    self.free_cells.append((self.x_position - n - 1, self.y_position))
+                self.visit_locations.append((self.x_position - 2, self.y_position))
+
+            if center_distance < 2:
+                for n in range(center_distance):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+                    if center_distance > 1:
+                        self.free_cells.append((self.x_position, self.y_position - n - 1))
+                self.discovered_map[self.y_zero + self.y_position - n*2 - 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position - 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+                    self.free_cells.append((self.x_position, self.y_position - n - 1))
+                self.visit_locations.append((self.x_position, self.y_position - 2))
+
+            if back_distance < 2:
+                for n in range(back_distance):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+                    if back_distance > 1:
+                        self.free_cells.append((self.x_position, self.y_position + n + 1))
+                self.discovered_map[self.y_zero + self.y_position + n*2 + 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position + 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+                    self.free_cells.append((self.x_position, self.y_position + n + 1))
+                self.visit_locations.append((self.x_position, self.y_position + 2))
+            self.discovered_map[self.y_zero][self.x_zero] = 'I'
 
 
+        set1 = set(self.visit_locations)
+        set2 = set(self.visited_locations) 
+        self.visit_locations = list(set1 - set2)
+        print(self.visited_locations)
         for n in range(27):
             print(self.discovered_map[n])
         print("Visit Locations: " + str(self.visit_locations))
-        print("Free Cells: " + str(self.free_cells))
+        #print("Free Cells: " + str(self.free_cells))
 
     def find_next_location(self, visit_locations, free_cells, current_position):
 
@@ -152,7 +217,7 @@ class MyRob(CRobLinkAngs):
                 if goal[0] == x and goal[1] == y:
                     return current_node
 
-            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            for dx, dy in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
                 new_x = x + dx
                 new_y = y + dy
                 if 0 <= new_x < CELLCOLS and 0 <= new_y < CELLROWS and (new_x, new_y) in free_cells:
@@ -162,7 +227,7 @@ class MyRob(CRobLinkAngs):
 
     def calibratePosition(self):
         self.x_offset = self.measures.x
-        self.y_offset = self.measures.y
+        self.y_offset = -self.measures.y
 
     def run(self):
         if self.status != 0:
@@ -212,10 +277,10 @@ class MyRob(CRobLinkAngs):
             self.first_loop = False
 
         self.x_position = int(round(self.measures.x - self.x_offset))
-        self.y_position = int(round(self.measures.y - self.y_offset))
+        self.y_position = int(round(-self.measures.y - self.y_offset))
         self.direction = int(round(self.measures.compass))
         x_float_position = self.measures.x - self.x_offset
-        y_float_position = self.measures.y - self.y_offset
+        y_float_position = -self.measures.y - self.y_offset
         
         if self.map_position:
             self.path = []
@@ -232,26 +297,41 @@ class MyRob(CRobLinkAngs):
                 return   
 
         # Move the robot towards the next location (logic for movement omitted for brevity)
-        print(self.path)
+        #print(self.path)
         if self.path:
-            n = 0
-            for location in self.path:
-                dx = location.x - x_float_position
-                dy = location.y - y_float_position
-                if (dy == 0) & (dx != 0) & (((self.direction < 5) & (self.direction > -5)) | (self.direction > 175) | (self.direction < -175)):
-                    if x_float_position != location.x:
-                        if dx > 0:
-                            self.driveMotors(self.base_velocity, self.base_velocity)
-                        else:
-                            self.driveMotors(-self.base_velocity, -self.base_velocity)
+            location = self.path[0]
+            dx = location.x - x_float_position
+            dy = location.y - y_float_position
+            print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
+            print("Dx = " + str(dx)+ " Dy = " + str(dy))
+            if (round(dy) == 0) & (round(dx) != 0) & ((self.direction < 5) & (self.direction > -5)):
+                if x_float_position != location.x:
+                    if dx > 0:
+                        self.driveMotors(self.base_velocity, self.base_velocity)
+                    else:
+                        self.driveMotors(-self.base_velocity, -self.base_velocity)
+            elif (round(dy) == 0) & (round(dx) != 0) & (((self.direction > 5) | (self.direction < -5))):
+                if self.direction > 0:
+                    self.driveMotors (self.base_velocity, -self.base_velocity)
                 else:
-                    self.driveMotors(0,0)
-                    del self.path[n]
-                    n += 1
-                if self.path:
-                    continue
+                    self.driveMotors (-self.base_velocity, self.base_velocity)
+            elif (round(dy) != 0) & (round(dx) == 0) & (((self.direction < 95) & (self.direction > 85))):
+                if y_float_position != location.y:
+                    if dy > 0:
+                        self.driveMotors(-self.base_velocity, -self.base_velocity)
+                    else:
+                        self.driveMotors(self.base_velocity, self.base_velocity)
+            elif (round(dy) != 0) & (round(dx) == 0) & (((self.direction > 95) | (self.direction < 85))):
+                if self.direction > 95:
+                    self.driveMotors (self.base_velocity, -self.base_velocity)
                 else:
-                    self.map_position = True
+                    self.driveMotors (-self.base_velocity, self.base_velocity)
+            else:
+                self.driveMotors(0,0)
+                del self.path[0]
+        else:
+            self.visited_locations.append((self.x_position, self.y_position))
+            self.map_position = True
 
         if len(self.visit_locations) == 0:
             return
@@ -308,7 +388,7 @@ for i in range(1, len(sys.argv),2):
         quit()
 
 if __name__ == '__main__':
-    rob=MyRob(rob_name,pos,[0.0,-90.0,180.0,90.0],host)
+    rob=MyRob(rob_name,pos,[0.0,90.0,180.0,-90.0],host)
     if mapc != None:
         rob.setMap(mapc.labMap)
         rob.printMap()
