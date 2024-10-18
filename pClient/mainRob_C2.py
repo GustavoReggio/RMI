@@ -16,6 +16,7 @@ class MyRob(CRobLinkAngs):
         self.y_zero = 14 - 1
         self.discovered_map[self.y_zero][self.x_zero] = 'I'
         self.base_velocity = 0.1
+        self.visit_locations = []
 
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
@@ -27,7 +28,7 @@ class MyRob(CRobLinkAngs):
         for l in reversed(self.labMap):
             print(''.join([str(l) for l in l]))
 
-    def mapLocation(self, x_position, y_position, direction):
+    def mapLocation(self):
         center_id = 0
         left_id = 1
         back_id = 2
@@ -55,143 +56,55 @@ class MyRob(CRobLinkAngs):
         except:
             right_distance = 20
         
-        center_distance = ceil(center_distance)
-        left_distance = ceil(left_distance)
-        back_distance = ceil(back_distance)
-        right_distance = ceil(right_distance)
+        center_distance = int(ceil(center_distance))
+        left_distance = int(ceil(left_distance))
+        back_distance = int(ceil(back_distance))
+        right_distance = int(ceil(right_distance))
 
         print('Center: '+str(center_distance)+' Left: '+str(left_distance)+' Back: '+str(back_distance)+' Right: '+str(right_distance))
 
-        if direction == 0:
-            if center_distance < 1:
-                self.discovered_map[y_position + self.y_zero][x_position + self.x_zero + 2] = '|'
-            else:
-                self.discovered_map[y_position + self.y_zero][x_position + 28 + 1 - 1] = 'X'
-                self.discovered_map[y_position + self.y_zero][x_position + 28 + 2 - 1] = 'X'
-            if right_distance < 1:
-                self.discovered_map[y_position + self.y_zero + 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + self.y_zero + 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + self.y_zero + 2][x_position + 28 - 1] = 'X'
-            if back_distance < 1:
-                self.discovered_map[y_position + self.y_zero][x_position + 28 - 2 - 1] = '|'
-            else:
-                self.discovered_map[y_position + self.y_zero][x_position + 28 - 1 - 1] = 'X'
-                self.discovered_map[y_position + self.y_zero][x_position + 28 - 2 - 1] = 'X'
-            if left_distance < 1:
-                self.discovered_map[y_position + self.y_zero - 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + self.y_zero - 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + self.y_zero - 2][x_position + 28 - 1] = 'X'
-        elif direction == 90:
-            if right_distance < 1:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] = '|'
-            else:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 1 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] = 'X'
-            if back_distance < 1:
-                self.discovered_map[y_position + 14 + 1 - 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + 14 + 1 - 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + 14 + 2 - 1][x_position + 28 - 1] = 'X'
-            if left_distance < 1:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] = '|'
-            else:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 1 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] = 'X'
-            if center_distance < 1:
-                self.discovered_map[y_position + 14 - 1 - 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + 14 - 1 - 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 2 - 1][x_position + 28 - 1] = 'X'
-        elif (direction == 180) | (direction == -180):
-            if back_distance < 1:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] = '|'
-            else:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 1 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] = 'X'
-            if left_distance < 1:
-                self.discovered_map[y_position + 14 + 1 - 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + 14 + 1 - 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + 14 + 2 - 1][x_position + 28 - 1] = 'X'
-            if center_distance < 1:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] = '|'
-            else:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 1 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] = 'X'
-            if right_distance < 1:
-                self.discovered_map[y_position + 14 - 1 - 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + 14 - 1 - 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 2 - 1][x_position + 28 - 1] = 'X'
-        elif direction == -90:
-            if left_distance < 1:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] = '|'
-            else:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 1 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] = 'X'
-            if center_distance < 1:
-                self.discovered_map[y_position + 14 + 1 - 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + 14 + 1 - 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + 14 + 2 - 1][x_position + 28 - 1] = 'X'
-            if right_distance < 1:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] = '|'
-            else:
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 1 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] = 'X'
-            if back_distance < 1:
-                self.discovered_map[y_position + 14 - 1 - 1][x_position + 28 - 1] = '-'
-            else:
-                self.discovered_map[y_position + 14 - 1 - 1][x_position + 28 - 1] = 'X'
-                self.discovered_map[y_position + 14 - 2 - 1][x_position + 28 - 1] = 'X'
+        #Will we map it only looking forward, or will we map in the direction we are facing?
+        if center_distance < 3:
+            for n in range(center_distance):
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+            self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n*2 + 1] = '|'
+        else :
+            for n in range(2):
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+            self.visit_locations.append((self.x_zero + self.x_position + 2, self.y_zero + self.y_position))
+
+        if back_distance < 3:
+            for n in range(back_distance):
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+            self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n*2 - 1] = '|'
+        else :
+            for n in range(2):
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+            self.visit_locations.append((self.x_zero + self.x_position - 2, self.y_zero + self.y_position))
+
+        if left_distance < 3:
+            for n in range(left_distance):
+                self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+            self.discovered_map[self.y_zero + self.y_position - n*2 - 1][self.x_zero + self.x_position] = '-'
+        else :
+            for n in range(2):
+                self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+            self.visit_locations.append((self.x_zero + self.x_position,  self.y_zero + self.y_position - 2))
+
+        if right_distance < 3:
+            for n in range(right_distance):
+                self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+            self.discovered_map[self.y_zero + self.y_position + n*2 + 1][self.x_zero + self.x_position] = '-'
+        else :
+            for n in range(2):
+                self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+        self.visit_locations.append((self.x_zero + self.x_position, self.y_zero + self.y_position + 2))
+
 
         for n in range(27):
             print(self.discovered_map[n])
+        print(self.visit_locations)
 
-    def findNextLocation(self, x_position, y_position, direction):
-        if direction == 0:
-            if self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] == 'X':
-                next_step = "FW"
-            else:
-                if self.discovered_map[y_position + 14 + 2 - 1][x_position + 28 - 1] == 'X':
-                    next_step = "CW"
-                elif self.discovered_map[y_position + 14 - 2 - 1][x_position + 28 - 1] == 'X':
-                    next_step = "CCW"
-                else: 
-                    next_step = "BW"
-        if direction == 90:
-            if self.discovered_map[y_position + 14 - 2 - 1][x_position + 28 - 1] == 'X':
-                next_step = "FW"
-            else:
-                if self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] == 'X':
-                    next_step = "CW"
-                elif self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] == 'X':
-                    next_step = "CCW"
-                else: 
-                    next_step = "BW"
-        if (direction == 180) | (direction == -180):
-            if self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] == 'X':
-                next_step = "FW"
-            else:
-                if self.discovered_map[y_position + 14 - 2 - 1][x_position + 28 - 1] == 'X':
-                    next_step = "CW"
-                elif self.discovered_map[y_position + 14 + 2 - 1][x_position + 28 - 1] == 'X':
-                    next_step = "CCW"
-                else: 
-                    next_step = "BW"
-        if direction == -90:
-            if self.discovered_map[y_position + 14 + 2 - 1][x_position + 28 - 1] == 'X':
-                next_step = "FW"
-            else:
-                if self.discovered_map[y_position + 14 - 1][x_position + 28 - 2 - 1] == 'X':
-                    next_step = "CW"
-                elif self.discovered_map[y_position + 14 - 1][x_position + 28 + 2 - 1] == 'X':
-                    next_step = "CCW"
-                else: 
-                    next_step = "BW"
-        return next_step
 
     def calibratePosition(self):
         self.x_offset = self.measures.x
@@ -249,12 +162,9 @@ class MyRob(CRobLinkAngs):
         self.direction = int(round(self.measures.compass))
 
         if self.map_position:
-            self.mapLocation(self.x_position,self.y_position,self.direction)
+            self.mapLocation()
             self.map_position = False
             
-            next_location = self.findNextLocation(self.x_position, self.y_position, self.direction)
-            print(next_location)
-
         print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
         
         self.driveMotors(self.base_velocity, self.base_velocity)
