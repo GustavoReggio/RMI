@@ -220,10 +220,10 @@ class MyRob(CRobLinkAngs):
             for dx, dy in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
                 new_x = x + dx
                 new_y = y + dy
-                if 0 <= new_x < CELLCOLS and 0 <= new_y < CELLROWS and (new_x, new_y) in free_cells:
+                if (new_x, new_y) in free_cells:
                     new_node = Node(new_x, new_y, distance + 1, current_node)
                     queue.append(new_node)
-        return None
+        #return None
 
     def calibratePosition(self):
         self.x_offset = self.measures.x
@@ -288,6 +288,8 @@ class MyRob(CRobLinkAngs):
             self.map_position = False
     
             next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
+            print("Next Location: " + str(next_location.x) + " " + str(next_location.y))
+
             if next_location:
                 while next_location:
                     self.path.append(next_location)
@@ -304,25 +306,25 @@ class MyRob(CRobLinkAngs):
             dy = location.y - y_float_position
             print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
             print("Dx = " + str(dx)+ " Dy = " + str(dy))
-            if (round(dy) == 0) & (round(dx) != 0) & ((self.direction < 5) & (self.direction > -5)):
+            if ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & ((self.direction < 3) & (self.direction > -3)):
                 if x_float_position != location.x:
                     if dx > 0:
                         self.driveMotors(self.base_velocity, self.base_velocity)
                     else:
                         self.driveMotors(-self.base_velocity, -self.base_velocity)
-            elif (round(dy) == 0) & (round(dx) != 0) & (((self.direction > 5) | (self.direction < -5))):
+            elif ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & (((self.direction > 3) | (self.direction < -3))):
                 if self.direction > 0:
                     self.driveMotors (self.base_velocity, -self.base_velocity)
                 else:
                     self.driveMotors (-self.base_velocity, self.base_velocity)
-            elif (round(dy) != 0) & (round(dx) == 0) & (((self.direction < 95) & (self.direction > 85))):
+            elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction < 93) & (self.direction > 87))):
                 if y_float_position != location.y:
                     if dy > 0:
                         self.driveMotors(-self.base_velocity, -self.base_velocity)
                     else:
                         self.driveMotors(self.base_velocity, self.base_velocity)
-            elif (round(dy) != 0) & (round(dx) == 0) & (((self.direction > 95) | (self.direction < 85))):
-                if self.direction > 95:
+            elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction > 93) | (self.direction < 87))):
+                if self.direction > 90:
                     self.driveMotors (self.base_velocity, -self.base_velocity)
                 else:
                     self.driveMotors (-self.base_velocity, self.base_velocity)
