@@ -6,6 +6,32 @@ import xml.etree.ElementTree as ET
 CELLROWS=7
 CELLCOLS=14
 
+class FilterSensor:
+    def __init__(self, amostragem):
+        self.amostragem = amostragem
+        self.sensors = {
+            'left': [],
+            'right': [],
+            'center': [],
+            'back': []
+        }
+
+    def add_value(self, sensor_id, new_value):
+        values = self.sensors[sensor_id]
+        if len(values) >= self.amostragem:
+            values.pop(0)  # Remove o valor mais antigo
+        values.append(new_value)
+
+    def get_filtered_value(self, sensor_id):
+        values = self.sensors[sensor_id]
+        if values:
+            mean = sum(values)/len(values)
+        else:
+            mean = 0 
+        return  mean
+
+filter_ir_sensor = FilterSensor(amostragem=5)
+
 class Node:
   def __init__(self, x, y, distance, parent = None):
     self.x = x
@@ -27,6 +53,7 @@ class MyRob(CRobLinkAngs):
         self.free_cells = [(0,0)]
         self.visited_locations = [(0,0)]
         self.path = []
+        self.counter = 5
 
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
@@ -39,15 +66,16 @@ class MyRob(CRobLinkAngs):
             print(''.join([str(l) for l in l]))
 
     def mapLocation(self):
-        center_id = 0
-        left_id = 1
-        back_id = 2
-        right_id = 3
 
-        center_proximity = self.measures.irSensor[center_id]
-        left_proximity = self.measures.irSensor[left_id]
-        back_proximity = self.measures.irSensor[back_id]
-        right_proximity = self.measures.irSensor[right_id]
+        # center_proximity = self.measures.irSensor[center_id]
+        # left_proximity = self.measures.irSensor[left_id]
+        # back_proximity = self.measures.irSensor[back_id]
+        # right_proximity = self.measures.irSensor[right_id]
+
+        center_proximity = filter_ir_sensor.get_filtered_value('center')
+        left_proximity = filter_ir_sensor.get_filtered_value('left')
+        right_proximity = filter_ir_sensor.get_filtered_value('right')
+        back_proximity = filter_ir_sensor.get_filtered_value('back')
 
         try :
             center_distance = 1 / center_proximity
@@ -270,6 +298,15 @@ class MyRob(CRobLinkAngs):
                 if self.measures.returningLed==True:
                     self.setReturningLed(False)
                 self.wander()
+    
+    def waitForSensor(self, default_value):
+        if self.counter > 0:
+            self.counter -= 1
+            return False
+        else:
+            self.counter = default_value
+            return True
+
             
     def wander(self):
         if self.first_loop:
@@ -281,22 +318,34 @@ class MyRob(CRobLinkAngs):
         self.direction = int(round(self.measures.compass))
         x_float_position = self.measures.x - self.x_offset
         y_float_position = -self.measures.y - self.y_offset
+
+        center_id = 0
+        left_id = 1
+        back_id = 2
+        right_id = 3
+
+        filter_ir_sensor.add_value('center', self.measures.irSensor[center_id])
+        filter_ir_sensor.add_value('left', self.measures.irSensor[left_id])
+        filter_ir_sensor.add_value('right', self.measures.irSensor[right_id])
+        filter_ir_sensor.add_value('back', self.measures.irSensor[back_id])
+
         
         if self.map_position:
-            self.path = []
-            self.mapLocation()
-            self.map_position = False
-    
-            next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
-            print("Next Location: " + str(next_location.x) + " " + str(next_location.y))
+            if self.waitForSensor(5):
+                self.path = []
+                self.mapLocation()
+                self.map_position = False
+        
+                next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
+                print("Next Location: " + str(next_location.x) + " " + str(next_location.y))
 
-            if next_location:
-                while next_location:
-                    self.path.append(next_location)
-                    next_location = next_location.parent
-                self.path.reverse()
-            else:
-                return   
+                if next_location:
+                    while next_location:
+                        self.path.append(next_location)
+                        next_location = next_location.parent
+                    self.path.reverse()
+                else:
+                    return   
 
         # Move the robot towards the next location (logic for movement omitted for brevity)
         #print(self.path)
