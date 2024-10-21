@@ -2,9 +2,26 @@ import sys
 from croblink import *
 from math import *
 import xml.etree.ElementTree as ET
+import time
 
 CELLROWS=7
 CELLCOLS=14
+
+class PIDController:
+    def __init__(self, kp, ki, kd, setpoint=0):
+        self.kp = kp  # Proportional gain
+        self.ki = ki  # Integral gain
+        self.kd = kd  # Derivative gain
+        self.setpoint = setpoint  # Desired value (target)
+        self.previous_error = 0  # Last error (for derivative)
+        self.integral = 0  # Sum of errors (for integral)
+
+    def compute(self, error, dt):
+        self.integral += error * dt
+        derivative = (error - self.previous_error) / dt
+        self.previous_error = error
+        output = self.kp * error + self.ki * self.integral + self.kd * derivative
+        return output
 
 class FilterSensor:
     def __init__(self, amostragem):
@@ -54,6 +71,8 @@ class MyRob(CRobLinkAngs):
         self.visited_locations = [(0,0)]
         self.path = []
         self.counter = 5
+        self.pid_controller = PIDController(0.25, 0.0, 0.0)
+
 
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
@@ -264,6 +283,7 @@ class MyRob(CRobLinkAngs):
 
         state = 'stop'
         stopped_state = 'run'
+        self.last_time = time.time()
 
         while True:
             self.readSensors()
@@ -309,6 +329,14 @@ class MyRob(CRobLinkAngs):
 
             
     def wander(self):
+        current_time = time.time()
+        dt = current_time - self.last_time
+        self.last_time = current_time
+
+        if dt <= 0:
+            dt = 0.01
+
+
         if self.first_loop:
             self.calibratePosition()
             self.first_loop = False
@@ -337,7 +365,6 @@ class MyRob(CRobLinkAngs):
                 self.map_position = False
         
                 next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
-                print("Next Location: " + str(next_location.x) + " " + str(next_location.y))
 
                 if next_location:
                     while next_location:
@@ -346,9 +373,13 @@ class MyRob(CRobLinkAngs):
                     self.path.reverse()
                 else:
                     return   
+        
+        if len(self.visit_locations) == 0:
+            if len(self.free_cells) == 1:
+                return
+            else:
+                quit()
 
-        # Move the robot towards the next location (logic for movement omitted for brevity)
-        #print(self.path)
         if self.path:
             location = self.path[0]
             dx = location.x - x_float_position
@@ -356,22 +387,26 @@ class MyRob(CRobLinkAngs):
             print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
             print("Dx = " + str(dx)+ " Dy = " + str(dy))
             if ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & ((self.direction < 3) & (self.direction > -3)):
+                error = 0
+                pid_value = self.pid_controller.compute(error,dt)
                 if x_float_position != location.x:
                     if dx > 0:
-                        self.driveMotors(self.base_velocity, self.base_velocity)
+                        self.driveMotors(self.base_velocity + pid_value, self.base_velocity- pid_value)
                     else:
-                        self.driveMotors(-self.base_velocity, -self.base_velocity)
+                        self.driveMotors(-self.base_velocity - pid_value, -self.base_velocity + pid_value)
             elif ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & (((self.direction > 3) | (self.direction < -3))):
                 if self.direction > 0:
                     self.driveMotors (self.base_velocity, -self.base_velocity)
                 else:
                     self.driveMotors (-self.base_velocity, self.base_velocity)
             elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction < 93) & (self.direction > 87))):
+                error = 0
+                pid_value = self.pid_controller.compute(error,dt)
                 if y_float_position != location.y:
                     if dy > 0:
-                        self.driveMotors(-self.base_velocity, -self.base_velocity)
+                        self.driveMotors(-self.base_velocity + pid_value, -self.base_velocity - pid_value)
                     else:
-                        self.driveMotors(self.base_velocity, self.base_velocity)
+                        self.driveMotors(self.base_velocity - pid_value, self.base_velocity + pid_value)
             elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction > 93) | (self.direction < 87))):
                 if self.direction > 90:
                     self.driveMotors (self.base_velocity, -self.base_velocity)
@@ -384,8 +419,6 @@ class MyRob(CRobLinkAngs):
             self.visited_locations.append((self.x_position, self.y_position))
             self.map_position = True
 
-        if len(self.visit_locations) == 0:
-            return
 
         print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
         
