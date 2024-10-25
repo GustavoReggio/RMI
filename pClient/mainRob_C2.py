@@ -72,6 +72,10 @@ class MyRob(CRobLinkAngs):
         self.path = []
         self.counter = 5
         self.pid_controller = PIDController(0.25, 0.0, 0.0)
+        self.is_idle = True
+        self.objective = None
+        self.goal = 0
+        self.error = 0
 
 
 
@@ -270,7 +274,60 @@ class MyRob(CRobLinkAngs):
                 if (new_x, new_y) in free_cells:
                     new_node = Node(new_x, new_y, distance + 1, current_node)
                     queue.append(new_node)
-        #return None
+
+    def moveSelf(self, objective, goal, error): 
+        current_time = time.time()
+        dt = current_time - self.last_time
+        self.last_time = current_time
+
+        if dt <= 0:
+            dt = 0.01
+
+        if objective:
+            distance_to_goal = 0
+            if goal == "dx":
+                distance_to_goal = self.dx
+            elif goal == "dy":
+                distance_to_goal = -self.dy
+            elif goal == "0":
+                distance_to_goal = -self.direction
+            elif goal == "90":
+                distance_to_goal = 90 - self.direction
+
+            print(distance_to_goal)
+
+            if (objective == "forward"):
+                if distance_to_goal < 0.2:
+                    self.driveMotors(0, 0)
+                    return True
+                else:
+                    self.driveMotors(self.base_velocity, self.base_velocity)
+                    return False
+            elif (objective == "backward"):
+                if distance_to_goal > -0.2:
+                    self.driveMotors(0, 0)
+                    return True
+                else:
+                    self.driveMotors(-self.base_velocity, -self.base_velocity)
+                    return False
+            elif (objective == "turn left"):
+                if ((distance_to_goal < 5) & (distance_to_goal > -5)):
+                    print("Stop")
+                    self.driveMotors(0, 0)
+                    return True
+                else:
+                    self.driveMotors(-self.base_velocity, self.base_velocity)
+                    return False
+            elif (objective == "turn right"):
+                if (distance_to_goal < 5) & (distance_to_goal > -5):
+                    print("Stop")
+                    self.driveMotors(0, 0)
+                    return True
+                else:
+                    self.driveMotors(self.base_velocity, -self.base_velocity)
+                    return False
+        else:
+            return True
 
     def calibratePosition(self):
         self.x_offset = self.measures.x
@@ -329,13 +386,6 @@ class MyRob(CRobLinkAngs):
 
             
     def wander(self):
-        current_time = time.time()
-        dt = current_time - self.last_time
-        self.last_time = current_time
-
-        if dt <= 0:
-            dt = 0.01
-
 
         if self.first_loop:
             self.calibratePosition()
@@ -378,47 +428,80 @@ class MyRob(CRobLinkAngs):
             if len(self.free_cells) == 1:
                 return
             else:
+                with open("map_made.map", 'w') as file:
+                    # Write content to the file
+                    for i in range(len(self.discovered_map)):
+                        for ii in range(len(self.discovered_map[i])):    
+                            file.write(str(self.discovered_map[i][ii]))
+                        file.write("\n")
                 quit()
 
         if self.path:
             location = self.path[0]
-            dx = location.x - x_float_position
-            dy = location.y - y_float_position
-            print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
-            print("Dx = " + str(dx)+ " Dy = " + str(dy))
-            if ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & ((self.direction < 3) & (self.direction > -3)):
-                error = 0
-                pid_value = self.pid_controller.compute(error,dt)
-                if x_float_position != location.x:
-                    if dx > 0:
-                        self.driveMotors(self.base_velocity + pid_value, self.base_velocity- pid_value)
+            self.dx = location.x - x_float_position
+            self.dy = location.y - y_float_position
+
+            if self.is_idle:
+                print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
+                print("Dx = " + str(self.dx)+ " Dy = " + str(self.dy))
+                if ((self.dy < 0.5) & (self.dy > -0.5)) & ((self.dx > 0.5) | (self.dx < -0.5)):
+                    if ((self.direction < 5) & (self.direction > -5)):
+                        self.error = "dy"
+                        self.goal = "dx"
+                        if self.dx > 0:
+                            #self.driveMotors(self.base_velocity, self.base_velocity)
+                            self.objective = "forward"
+                        else:
+                            #self.driveMotors(-self.base_velocity, -self.base_velocity)
+                            self.objective = "backward"
                     else:
-                        self.driveMotors(-self.base_velocity - pid_value, -self.base_velocity + pid_value)
-            elif ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & (((self.direction > 3) | (self.direction < -3))):
-                if self.direction > 0:
-                    self.driveMotors (self.base_velocity, -self.base_velocity)
-                else:
-                    self.driveMotors (-self.base_velocity, self.base_velocity)
-            elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction < 93) & (self.direction > 87))):
-                error = 0
-                pid_value = self.pid_controller.compute(error,dt)
-                if y_float_position != location.y:
-                    if dy > 0:
-                        self.driveMotors(-self.base_velocity + pid_value, -self.base_velocity - pid_value)
+                        self.goal = "0"
+                        if self.direction > 0:
+                            #self.driveMotors(self.base_velocity, -self.base_velocity)
+                            self.objective  = "turn right"
+                        else:
+                            # self.driveMotors(-self.base_velocity, self.base_velocity)
+                            self.objective = "turn left"
+                # elif ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & (((self.direction > 3) | (self.direction < -3))):
+                #     if self.direction > 0:
+                #         self.driveMotors (self.base_velocity, -self.base_velocity)
+                #     else:
+                #         self.driveMotors (-self.base_velocity, self.base_velocity)
+                elif ((self.dy > 0.5) | (self.dy < -0.5)) & ((self.dx < 0.5) & (self.dx > -0.5)):
+                    if ((self.direction < 95) & (self.direction > 85)):
+                        self.goal = "dy"
+                        self.error = "dx"
+                        if self.dy > 0:
+                            # self.driveMotors(-self.base_velocity, -self.base_velocity)
+                            self.objective = "backward"
+                        else:
+                            # self.driveMotors(self.base_velocity, self.base_velocity)
+                            self.objective = "forward"
                     else:
-                        self.driveMotors(self.base_velocity - pid_value, self.base_velocity + pid_value)
-            elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction > 93) | (self.direction < 87))):
-                if self.direction > 90:
-                    self.driveMotors (self.base_velocity, -self.base_velocity)
+                        self.goal = "90"
+                        if self.direction > 90:
+                            # self.driveMotors (self.base_velocity, -self.base_velocity)
+                            self.objective = "turn right"
+                        else:
+                            # self.driveMotors (-self.base_velocity, self.base_velocity)
+                            self.objective = "turn left"
+                # elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction > 93) | (self.direction < 87))):
+                #     if self.direction > 90:
+                #         self.driveMotors (self.base_velocity, -self.base_velocity)
+                #     else:
+                #         self.driveMotors (-self.base_velocity, self.base_velocity)
                 else:
-                    self.driveMotors (-self.base_velocity, self.base_velocity)
-            else:
-                self.driveMotors(0,0)
-                del self.path[0]
+                    self.driveMotors(0,0)
+                    del self.path[0]
+
+
+            print(str(self.objective) + " " + str(self.goal))
+            self.is_idle = self.moveSelf(self.objective, self.goal, self.error)
+
+                
         else:
             self.visited_locations.append((self.x_position, self.y_position))
             self.map_position = True
-
 
         print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
         
