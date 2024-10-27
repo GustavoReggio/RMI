@@ -71,7 +71,7 @@ class MyRob(CRobLinkAngs):
         self.visited_locations = [(0,0)]
         self.path = []
         self.counter = 5
-        self.pid_controller = PIDController(0.25, 0.0, 0.0)
+        self.pid_controller = PIDController(0.05, 0.0, 0.0)
         self.is_idle = True
         self.objective = None
         self.goal = 0
@@ -125,7 +125,7 @@ class MyRob(CRobLinkAngs):
         print('Center: '+str(center_distance)+' Left: '+str(left_distance)+' Back: '+str(back_distance)+' Right: '+str(right_distance))
 
         #Will we map it only looking forward, or will we map in the direction we are facing?
-        if round(self.direction / 10) == 0:
+        if int(min((0, 9), key=lambda x:abs(x-(round(abs(self.direction)/10))))) == 0:
             if center_distance < 2:
                 for n in range(center_distance):
                     self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
@@ -183,7 +183,7 @@ class MyRob(CRobLinkAngs):
                 self.visit_locations.append((self.x_position, self.y_position + 2))
             self.discovered_map[self.y_zero][self.x_zero] = 'I'
         
-        elif round(self.direction / 10) == 9:
+        elif int(min((0, 9), key=lambda x:abs(x-(round(abs(self.direction)/10))))) == 9:
             if right_distance < 2:
                 for n in range(right_distance):
                     self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
@@ -293,13 +293,24 @@ class MyRob(CRobLinkAngs):
                 distance_to_goal = -self.direction
             elif goal == "90":
                 distance_to_goal = 90 - self.direction
+            
+            error_value = 0
+            if error == "dy":
+                error_value = self.dy
+            elif error == "dx":
+                error_value = self.dx
 
-            print(distance_to_goal)
+            pid_value = abs(self.pid_controller.compute(error_value,dt))
+            print(objective)
 
             if (objective == "forward"):
                 if distance_to_goal < 0.2:
                     self.driveMotors(0, 0)
                     return True
+                elif error_value > 0.1:
+                    self.driveMotors(self.base_velocity, max(0, self.base_velocity - pid_value))
+                elif error_value < -0.1:
+                    self.driveMotors(max(0, self.base_velocity - pid_value), self.base_velocity)
                 else:
                     self.driveMotors(self.base_velocity, self.base_velocity)
                     return False
@@ -307,6 +318,10 @@ class MyRob(CRobLinkAngs):
                 if distance_to_goal > -0.2:
                     self.driveMotors(0, 0)
                     return True
+                elif error_value > 0.1:
+                    self.driveMotors(-self.base_velocity, -max(0, self.base_velocity - pid_value))
+                elif error_value < -0.1:
+                    self.driveMotors(-max(0, self.base_velocity - pid_value), -self.base_velocity)
                 else:
                     self.driveMotors(-self.base_velocity, -self.base_velocity)
                     return False
@@ -441,9 +456,10 @@ class MyRob(CRobLinkAngs):
             self.dx = location.x - x_float_position
             self.dy = location.y - y_float_position
 
+            print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
+            print("Dx = " + str(self.dx)+ " Dy = " + str(self.dy))
+
             if self.is_idle:
-                print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
-                print("Dx = " + str(self.dx)+ " Dy = " + str(self.dy))
                 if ((self.dy < 0.5) & (self.dy > -0.5)) & ((self.dx > 0.5) | (self.dx < -0.5)):
                     if ((self.direction < 5) & (self.direction > -5)):
                         self.error = "dy"
@@ -468,7 +484,7 @@ class MyRob(CRobLinkAngs):
                 #     else:
                 #         self.driveMotors (-self.base_velocity, self.base_velocity)
                 elif ((self.dy > 0.5) | (self.dy < -0.5)) & ((self.dx < 0.5) & (self.dx > -0.5)):
-                    if ((self.direction < 95) & (self.direction > 85)):
+                    if ((self.direction < 95) & (self.direction > 84)):
                         self.goal = "dy"
                         self.error = "dx"
                         if self.dy > 0:
@@ -500,8 +516,25 @@ class MyRob(CRobLinkAngs):
 
                 
         else:
-            self.visited_locations.append((self.x_position, self.y_position))
-            self.map_position = True
+            if ((self.direction < 3) & (self.direction > -3)) | ((self.direction < 93) & (self.direction > 83)):
+                self.driveMotors(0,0)
+                self.is_idle = True
+                self.visited_locations.append((self.x_position, self.y_position))
+                self.map_position = True
+            else:
+                self.goal = min((0, 9), key=lambda x:abs(x-(round(abs(self.direction)/10))))
+                self.goal = str(int(self.goal * 10))
+                print(str(self.objective) + " " + str(self.goal))
+                if (self.goal == "0"):
+                    if (self.direction > 0):
+                        self.driveMotors(self.base_velocity, -self.base_velocity)
+                    elif (self.direction < 0):
+                        self.driveMotors(-self.base_velocity, self.base_velocity)
+                elif (self.goal == "90"):
+                    if (self.direction > 90):
+                        self.driveMotors(self.base_velocity, -self.base_velocity)
+                    elif (self.direction < 90):
+                        self.driveMotors(-self.base_velocity, self.base_velocity)
 
         print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
         
