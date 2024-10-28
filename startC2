@@ -15,5 +15,6 @@ sleep 3
 (cd pClient; ./s2.sh)
 
 killall simulator
+killall Viewer
 
 echo Bye
