@@ -1,97 +1,33 @@
-
 import sys
 from croblink import *
 from math import *
 import xml.etree.ElementTree as ET
-import statistics
-import time
-import os
-
 
 CELLROWS=7
 CELLCOLS=14
 
-# Filtros
-###################################################################
-class FilterSensor_left:
-    def __init__(self, amostragem):
-        self.amostragem = amostragem
-        self.values = []
-
-    def add_value_l(self, new_value):
-        if len(self.values) >= self.amostragem:
-            self.values.pop(0)  #pop remove o valor mais antigo === FIFO
-        self.values.append(new_value)
-        #sensor_l_string = self.values
-        #return sensor_l_string
-        return self.values
-
-    def get_filtered_value_l(self):
-        #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 0
-
-filter_ir_sensor_l = FilterSensor_left(amostragem=5)
-
-class FilterSensor_right:
-    def __init__(self, amostragem):
-        self.amostragem = amostragem
-        self.values = []
-
-    def add_value_r(self, new_value):
-        if len(self.values) >= self.amostragem:
-            self.values.pop(0)  
-        self.values.append(new_value)
-        #sensor_r_string = self.values
-        #return sensor_r_string
-        return self.values
-
-
-    def get_filtered_value_r(self):
-        #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 0
-
-filter_ir_sensor_r = FilterSensor_right(amostragem=5)
-
-class FilterSensor_center:
-    def __init__(self, amostragem):
-        self.amostragem = amostragem
-        self.values = []
-
-    def add_value_c(self, new_value):
-        if len(self.values) >= self.amostragem:
-            self.values.pop(0)  
-        self.values.append(new_value)
-        #sensor_c_string = self.values
-        #return sensor_c_string
-        return self.values
-
-    def get_filtered_value_c(self):
-        #return sum(self.values) / len(self.values) if self.values else 0
-        return statistics.median(self.values) if self.values else 0
-
-filter_ir_sensor_c = FilterSensor_center(amostragem=5)
-#############################################################################
-class PIDController:
-    def __init__(self, kp, ki, kd, setpoint=0):
-        self.kp = kp  # Proportional gain
-        self.ki = ki  # Integral gain
-        self.kd = kd  # Derivative gain
-        self.setpoint = setpoint  # Desired value (target)
-        self.previous_error = 0  # Last error (for derivative)
-        self.integral = 0  # Sum of errors (for integral)
-
-    def compute(self, error, dt):
-        self.integral += error * dt
-        derivative = (error - self.previous_error) / dt
-        self.previous_error = error
-        output = self.kp * error + self.ki * self.integral + self.kd * derivative
-        return output
+class Node:
+  def __init__(self, x, y, distance, parent = None):
+    self.x = x
+    self.y = y
+    self.distance = distance  
+    self.parent = parent 
 
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(0.25, 0.0, 0.0)
-        self.last_time = time.time()
+        self.first_loop = True
+        self.map_position = True
+        self.discovered_map = [[' ' for _ in range(55)] for _ in range(27)]
+        self.x_zero = 28 - 1
+        self.y_zero = 14 - 1
+        self.discovered_map[self.y_zero][self.x_zero] = 'I'
+        self.base_velocity = 0.1
+        self.visit_locations = []
+        self.free_cells = [(0,0)]
+        self.visited_locations = [(0,0)]
+        self.path = []
+
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -102,13 +38,245 @@ class MyRob(CRobLinkAngs):
         for l in reversed(self.labMap):
             print(''.join([str(l) for l in l]))
 
-    def printData(sensor_data):
-        print("\033[H", end="")  # Move o cursor para o topo da tela
-        print("Sensores")
-        print("=====================")
-        for sensor, value in sensor_data.items():
-            print(f"{sensor}: {value}")
+    def mapLocation(self):
+        center_id = 0
+        left_id = 1
+        back_id = 2
+        right_id = 3
 
+        center_proximity = self.measures.irSensor[center_id]
+        left_proximity = self.measures.irSensor[left_id]
+        back_proximity = self.measures.irSensor[back_id]
+        right_proximity = self.measures.irSensor[right_id]
+
+        try :
+            center__distance_ = 1 / center_proximity
+        except:
+            center__distance_ = 20
+        try :
+            left__distance_ = 1 / left_proximity
+        except:
+            left__distance_ = 20
+        try :
+            back__distance_ = 1 / back_proximity
+        except:
+            back__distance_ = 20
+        try :
+            right__distance_ = 1 / right_proximity
+        except:
+            right__distance_ = 20
+        
+        self.center_distance = int(ceil(center__distance_))
+        self.left_distance = int(ceil(left__distance_))
+        self.back_distance= int(ceil(back__distance_))
+        self.right_distance = int(ceil(right__distance_))
+
+        print('Center: '+str(self.center_distance)+' Left: '+str(self.left_distance)+' Back: '+str(self.back_distance)+' Right: '+str(self.right_distance))
+
+        #Will we map it only looking forward, or will we map in the direction we are facing?
+        if round(self.direction / 10) == 0:
+            if self.center_distance < 2:
+                for n in range(self.center_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                    if self.center_distance > 1:
+                        self.free_cells.append((self.x_position + n + 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n*2 + 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position + 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                    self.free_cells.append((self.x_position + n + 1, self.y_position))
+                self.visit_locations.append((self.x_position + 2, self.y_position))
+
+            if self.back_distance< 2:
+                for n in range(self.back_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+                    if self.back_distance> 1:
+                        self.free_cells.append((self.x_position - n - 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n*2 - 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position - 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+                    self.free_cells.append((self.x_position - n - 1, self.y_position))
+                self.visit_locations.append((self.x_position - 2, self.y_position))
+
+            if self.left_distance < 2:
+                for n in range(self.left_distance):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+                    if self.left_distance > 1:
+                        self.free_cells.append((self.x_position, self.y_position - n - 1))
+                self.discovered_map[self.y_zero + self.y_position - n*2 - 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position - 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+                    self.free_cells.append((self.x_position, self.y_position - n - 1))
+                self.visit_locations.append((self.x_position, self.y_position - 2))
+
+            if self.right_distance < 2:
+                for n in range(self.right_distance):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+                    if self.right_distance > 1:
+                        self.free_cells.append((self.x_position, self.y_position + n + 1))
+                self.discovered_map[self.y_zero + self.y_position + n*2 + 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position + 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+                    self.free_cells.append((self.x_position, self.y_position + n + 1))
+                self.visit_locations.append((self.x_position, self.y_position + 2))
+            self.discovered_map[self.y_zero][self.x_zero] = 'I'
+        
+        elif round(self.direction / 10) == 9:
+            if self.right_distance < 2:
+                for n in range(self.right_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                    if self.right_distance > 1:
+                        self.free_cells.append((self.x_position + n + 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n*2 + 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position + 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                    self.free_cells.append((self.x_position + n + 1, self.y_position))
+                self.visit_locations.append((self.x_position + 2, self.y_position))
+
+            if self.left_distance < 2:
+                for n in range(self.left_distance):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+                    if self.left_distance > 1:
+                        self.free_cells.append((self.x_position - n - 1, self.y_position))
+                self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n*2 - 1] = '|'
+                if n > 0:
+                    self.visit_locations.append((self.x_position - 2, self.y_position))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position - n - 1] = 'X'
+                    self.free_cells.append((self.x_position - n - 1, self.y_position))
+                self.visit_locations.append((self.x_position - 2, self.y_position))
+
+            if self.center_distance < 2:
+                for n in range(self.center_distance):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+                    if self.center_distance > 1:
+                        self.free_cells.append((self.x_position, self.y_position - n - 1))
+                self.discovered_map[self.y_zero + self.y_position - n*2 - 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position - 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position - n - 1][self.x_zero + self.x_position] = 'X'
+                    self.free_cells.append((self.x_position, self.y_position - n - 1))
+                self.visit_locations.append((self.x_position, self.y_position - 2))
+
+            if self.back_distance< 2:
+                for n in range(self.back_distance):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+                    if self.back_distance> 1:
+                        self.free_cells.append((self.x_position, self.y_position + n + 1))
+                self.discovered_map[self.y_zero + self.y_position + n*2 + 1][self.x_zero + self.x_position] = '-'
+                if n > 0:
+                    self.visit_locations.append((self.x_position, self.y_position + 2))
+            else :
+                for n in range(2):
+                    self.discovered_map[self.y_zero + self.y_position + n + 1][self.x_zero + self.x_position] = 'X'
+                    self.free_cells.append((self.x_position, self.y_position + n + 1))
+                self.visit_locations.append((self.x_position, self.y_position + 2))
+            self.discovered_map[self.y_zero][self.x_zero] = 'I'
+
+
+        set1 = set(self.visit_locations)
+        set2 = set(self.visited_locations) 
+        self.visit_locations = list(set1 - set2)
+        for n in range(27):
+            print(self.discovered_map[n])
+        print("Visit Locations: " + str(self.visit_locations))
+        print("Free Cells: " + str(self.free_cells))
+        print(self.visited_locations)
+        #--------------------------------------------------------------------------------#
+    def update_map(self):
+    # Atualiza o mapa com base nos sensores
+        if round(self.direction / 10) == 0:
+            self.update_section(self.center_distance, "center")
+            self.update_section(self.back_distance, "back")
+            self.update_section(self.left_distance, "left")
+            self.update_section(self.right_distance, "right")
+        elif round(self.direction / 10) == 9:
+            self.update_section(self.right_distance, "right")
+            self.update_section(self.left_distance, "left")
+            self.update_section(self.center_distance, "center")
+            self.update_section(self.back_distance, "back")
+
+        # Remove os locais visitados da lista de visita
+        set1 = set(self.visit_locations)
+        set2 = set(self.visited_locations)
+        self.visit_locations = list(set1 - set2)
+        # Exibe o mapa compacto
+        self.print_compact_map()
+
+    def update_section(self, distance, direction):
+    # Atualiza uma direção específica no mapa
+        if distance < 2:
+            for n in range(distance):
+                if direction == "center":
+                    self.discovered_map[self.y_zero + self.y_position][self.x_zero + self.x_position + n + 1] = 'X'
+                # Adiciona as outras direções aqui...
+        else:
+            # Condição para distâncias maiores
+            pass
+
+    def print_compact_map(self):
+        # Imprime o mapa de forma compacta
+        map_rows = []
+        for row in self.discovered_map:
+            # Junta as linhas do mapa em uma única string
+            map_rows.append("".join(row).rstrip())
+    
+        # Remove linhas vazias para deixar a impressão mais compacta
+        compact_map = "\n".join([row for row in map_rows if row.strip()])
+        # Imprime o mapa final
+        print(compact_map)
+        print(f"Visit Locations: {self.visit_locations}")
+        
+
+
+
+        #--------------------------------------------------------------------------------#
+
+    def find_next_location(self, visit_locations, free_cells, current_position):
+
+        visited = set()
+        queue = [Node(current_position[0], current_position[1], 0)]
+
+        while queue:
+            current_node = queue.pop(0)
+            x, y, distance = current_node.x, current_node.y, current_node.distance
+
+            if (x, y) in visited:
+                continue
+            visited.add((x, y))
+
+            for goal in visit_locations:
+                if goal[0] == x and goal[1] == y:
+                    return current_node
+
+            for dx, dy in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
+                new_x = x + dx
+                new_y = y + dy
+                if (new_x, new_y) in free_cells:
+                    new_node = Node(new_x, new_y, distance + 1, current_node)
+                    queue.append(new_node)
+        #return None
+
+    def calibratePosition(self):
+        self.x_offset = self.measures.x
+        self.y_offset = -self.measures.y
 
     def run(self):
         if self.status != 0:
@@ -117,7 +285,6 @@ class MyRob(CRobLinkAngs):
 
         state = 'stop'
         stopped_state = 'run'
-        self.last_time = time.time()
 
         while True:
             self.readSensors()
@@ -136,26 +303,8 @@ class MyRob(CRobLinkAngs):
             if state == 'run':
                 if self.measures.visitingLed==True:
                     state='wait'
-
-                #____________________# 
-                # TESTATANDO BASES
                 if self.measures.ground==0:
-                    print(self.measures.ground)
-                    #print('base 1')
-                    self.base = '0'
-                    #self.setVisitingLed(True);
-                if self.measures.ground==1:
-                    print(self.measures.ground)
-                    #print('base 2')
-                    #self.setVisitingLed(True);
-                    self.base = '1'
-                elif self.measures.ground==2:
-                    print(self.measures.ground)
-                    #print('base 3')
-                    #self.setVisitingLed(True)
-                    self.base = '2'
-                #____________________#        
-                            
+                    self.setVisitingLed(True);
                 self.wander()
             elif state=='wait':
                 self.setReturningLed(True)
@@ -172,103 +321,77 @@ class MyRob(CRobLinkAngs):
                 self.wander()
             
     def wander(self):
-        center_id = 0
-        left_id = 1
-        right_id = 2
-        back_id = 3
-        base_velocity = 0.1
-        speed_velocity = 1.5
-        # Para identificar no crusamento
-        commun_dist = 0.576
+        if self.first_loop:
+            self.calibratePosition()
+            self.first_loop = False
 
-        current_time = time.time()
-        dt = current_time - self.last_time
-        self.last_time = current_time
-
-        filter_ir_sensor_c.add_value_c(self.measures.irSensor[center_id])
-        filter_ir_sensor_l.add_value_l(self.measures.irSensor[left_id])
-        filter_ir_sensor_r.add_value_r(self.measures.irSensor[right_id])
+        self.x_position = int(round(self.measures.x - self.x_offset))
+        self.y_position = int(round(-self.measures.y - self.y_offset))
+        self.direction = int(round(self.measures.compass))
+        #print("Compas:",self.direction)
+        x_float_position = self.measures.x - self.x_offset
+        y_float_position = -self.measures.y - self.y_offset
+        
+        if self.map_position:
+            self.path = []
+            self.mapLocation()
+            self.map_position = False
     
-        
-        
-        filtered_left_value = filter_ir_sensor_l.get_filtered_value_l()
-        filtered_right_value = filter_ir_sensor_r.get_filtered_value_r()
-        filtered_center_value = filter_ir_sensor_c.get_filtered_value_c()    
+            next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
+            print("Next Location: " + str(next_location.x) + " " + str(next_location.y))
 
-        # Pegar a copia da sting do sensor para usar no crusamento
-        #sensor_string_c = filter_ir_sensor_c.add_value_c()
-        sensor_string_c = filter_ir_sensor_c.values
-        #sensor_string_l = filter_ir_sensor_l.add_value_l()
-        sensor_string_l = filter_ir_sensor_l.values
-        sensor_string_r = filter_ir_sensor_r.values
+            if next_location:
+                while next_location:
+                    self.path.append(next_location)
+                    next_location = next_location.parent
+                self.path.reverse()
+            else:
+                return   
 
-
-        if len(sensor_string_c) > 4:
-            last_value_c = sensor_string_c[4]  
+        # Move the robot towards the next location (logic for movement omitted for brevity)
+        #print(self.path)
+        if self.path:
+            location = self.path[0]
+            dx = location.x - x_float_position
+            dy = location.y - y_float_position
+            print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
+            print("Dx = " + str(dx)+ " Dy = " + str(dy))
+            if ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & ((self.direction < 3) & (self.direction > -3)):
+                if x_float_position != location.x:
+                    if dx > 0:
+                        self.driveMotors(self.base_velocity, self.base_velocity)
+                    else:
+                        self.driveMotors(-self.base_velocity, -self.base_velocity)
+            elif ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & (((self.direction > 3) | (self.direction < -3))):
+                if self.direction > 0:
+                    self.driveMotors (self.base_velocity, -self.base_velocity)
+                else:
+                    self.driveMotors (-self.base_velocity, self.base_velocity)
+            elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction < 93) & (self.direction > 87))):
+                if y_float_position != location.y:
+                    if dy > 0:
+                        self.driveMotors(-self.base_velocity, -self.base_velocity)
+                    else:
+                        self.driveMotors(self.base_velocity, self.base_velocity)
+            elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction > 93) | (self.direction < 87))):
+                if self.direction > 90:
+                    self.driveMotors (self.base_velocity, -self.base_velocity)
+                else:
+                    self.driveMotors (-self.base_velocity, self.base_velocity)
+            else:
+                self.driveMotors(0,0)
+                del self.path[0]
         else:
-            last_value_c = sensor_string_c[-1]         
+            self.visited_locations.append((self.x_position, self.y_position))
+            self.map_position = True
+
+        if len(self.visit_locations) == 0:
+            return
+
+        print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
         
-        if len(sensor_string_l) > 4:
-            last_value_l = sensor_string_l[4]  
-        else:
-            last_value_l = sensor_string_l[-1] 
+        #self.driveMotors(self.base_velocity, self.base_velocity)
         
-        if len(sensor_string_r) > 4:
-            last_value_r = sensor_string_r[4]  
-        else:
-            last_value_r = sensor_string_r[-1]   
-        
-                
- 
-        if dt <= 0:
-            dt = 0.01
-
-        # left_proximity = self.measures.irSensor[left_id]
-        # right_proximity = self.measures.irSensor[right_id]
-
-        left_proximity = filtered_left_value
-        right_proximity = filtered_right_value
-
-        error = right_proximity-left_proximity
-
-        pid_output = self.pid_controller.compute(error, dt)
-        #print(pid_output)
-
-        if error > 0.75:
-            #print('Rotate left')
-            self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
-            self.crusamento = '-'
-        elif error < -0.75:
-            #print ('Rotate right')
-            self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
-            self.crusamento = '-'
-        # elif filtered_left_value < commun_dist and filtered_right_value < commun_dist and filtered_center_value < commun_dist and self.measures.irSensor[back_id] < commun_dist:
-        #     self.driveMotors(base_velocity*5,base_velocity*5)
-        #     print('encruzilhada!!!')
-        elif last_value_c < commun_dist and last_value_l < commun_dist and last_value_r < commun_dist:
-            #print('cruzamento')
-            self.crusamento = 'crusamento'
-            self.driveMotors(speed_velocity,speed_velocity)
-
-        else:
-            #print('Go')
-            self.driveMotors(base_velocity,base_velocity)
-            self.crusamento = '-'
-        
-        sensor_data = {
-            "Sensor data Left" :sensor_string_l,
-            "Sensor left" :filtered_left_value,
-            "Sensor data Right" :sensor_string_r,
-            "Sensor Right" :filtered_right_value,
-            "Sensor data Center" :sensor_string_c,
-            "Sensor Center" :filtered_center_value,
-            "Base":self.base,
-            "Crusamento" : self.crusamento,
-        }
-        MyRob.printData(sensor_data)
-
-
-
 class Map():
     def __init__(self, filename):
         tree = ET.parse(filename)
@@ -295,6 +418,7 @@ class Map():
                            None
                
            i=i+1
+        print(self.labMap)
 
 
 rob_name = "pClient1"
@@ -316,7 +440,7 @@ for i in range(1, len(sys.argv),2):
         quit()
 
 if __name__ == '__main__':
-    rob=MyRob(rob_name,pos,[0.0,60.0,-60.0,180.0],host)
+    rob=MyRob(rob_name,pos,[0.0,90.0,180.0,-90.0],host)
     if mapc != None:
         rob.setMap(mapc.labMap)
         rob.printMap()
