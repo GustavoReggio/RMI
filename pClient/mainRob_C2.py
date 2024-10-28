@@ -90,11 +90,6 @@ class MyRob(CRobLinkAngs):
 
     def mapLocation(self):
 
-        # center_proximity = self.measures.irSensor[center_id]
-        # left_proximity = self.measures.irSensor[left_id]
-        # back_proximity = self.measures.irSensor[back_id]
-        # right_proximity = self.measures.irSensor[right_id]
-
         center_proximity = filter_ir_sensor.get_filtered_value('center')
         left_proximity = filter_ir_sensor.get_filtered_value('left')
         right_proximity = filter_ir_sensor.get_filtered_value('right')
@@ -249,7 +244,12 @@ class MyRob(CRobLinkAngs):
         for n in range(27):
             print(self.discovered_map[n])
         print("Visit Locations: " + str(self.visit_locations))
-        #print("Free Cells: " + str(self.free_cells))
+        with open("map_made.map", 'w') as file:
+                    # Write content to the file
+                    for i in range(len(self.discovered_map)):
+                        for ii in range(len(self.discovered_map[i])):    
+                            file.write(str(self.discovered_map[i][ii]))
+                        file.write("\n")
 
     def find_next_location(self, visit_locations, free_cells, current_position):
 
@@ -445,12 +445,6 @@ class MyRob(CRobLinkAngs):
             if len(self.free_cells) == 1:
                 return
             else:
-                with open("map_made.map", 'w') as file:
-                    # Write content to the file
-                    for i in range(len(self.discovered_map)):
-                        for ii in range(len(self.discovered_map[i])):    
-                            file.write(str(self.discovered_map[i][ii]))
-                        file.write("\n")
                 quit()
 
         if self.path:
@@ -467,47 +461,29 @@ class MyRob(CRobLinkAngs):
                         self.error = "dy"
                         self.goal = "dx"
                         if self.dx > 0:
-                            #self.driveMotors(self.base_velocity, self.base_velocity)
                             self.objective = "forward"
                         else:
-                            #self.driveMotors(-self.base_velocity, -self.base_velocity)
                             self.objective = "backward"
                     else:
                         self.goal = "0"
                         if self.direction > 0:
-                            #self.driveMotors(self.base_velocity, -self.base_velocity)
                             self.objective  = "turn right"
                         else:
-                            # self.driveMotors(-self.base_velocity, self.base_velocity)
                             self.objective = "turn left"
-                # elif ((dy < 0.2) & (dy > -0.2)) & ((dx > 0.2) | (dx < -0.2)) & (((self.direction > 3) | (self.direction < -3))):
-                #     if self.direction > 0:
-                #         self.driveMotors (self.base_velocity, -self.base_velocity)
-                #     else:
-                #         self.driveMotors (-self.base_velocity, self.base_velocity)
                 elif ((self.dy > 0.3) | (self.dy < -0.3)) & ((self.dx < 0.3) & (self.dx > -0.3)):
                     if ((self.direction < 97) & (self.direction > 83)):
                         self.goal = "dy"
                         self.error = "dx"
                         if self.dy > 0:
-                            # self.driveMotors(-self.base_velocity, -self.base_velocity)
                             self.objective = "backward"
                         else:
-                            # self.driveMotors(self.base_velocity, self.base_velocity)
                             self.objective = "forward"
                     else:
                         self.goal = "90"
                         if self.direction > 90:
-                            # self.driveMotors (self.base_velocity, -self.base_velocity)
                             self.objective = "turn right"
                         else:
-                            # self.driveMotors (-self.base_velocity, self.base_velocity)
                             self.objective = "turn left"
-                # elif ((dy > 0.2) | (dy < -0.2)) & ((dx < 0.2) & (dx > -0.2)) & (((self.direction > 93) | (self.direction < 87))):
-                #     if self.direction > 90:
-                #         self.driveMotors (self.base_velocity, -self.base_velocity)
-                #     else:
-                #         self.driveMotors (-self.base_velocity, self.base_velocity)
                 else:
                     self.driveMotors(0,0)
                     del self.path[0]
@@ -540,9 +516,7 @@ class MyRob(CRobLinkAngs):
                         self.driveMotors(-self.base_velocity, self.base_velocity)
 
         print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
-        
-        #self.driveMotors(self.base_velocity, self.base_velocity)
-        
+                
 class Map():
     def __init__(self, filename):
         tree = ET.parse(filename)
