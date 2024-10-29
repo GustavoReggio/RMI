@@ -50,11 +50,14 @@ class FilterSensor:
 filter_ir_sensor = FilterSensor(amostragem=5)
 
 class Node:
-  def __init__(self, x, y, distance, parent = None):
+  def __init__(self, x, y, distance = None, parent = None, f = None, g = None, h = None):
     self.x = x
     self.y = y
     self.distance = distance  
     self.parent = parent 
+    self.f = f
+    self.g = g
+    self.h = h
 
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
@@ -77,6 +80,7 @@ class MyRob(CRobLinkAngs):
         self.goal = 0
         self.error = 0
         self.target_position = []
+        self.manh_dist = []
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -244,20 +248,86 @@ class MyRob(CRobLinkAngs):
         for n in range(27):
             print(self.discovered_map[n])
         print("Visit Locations: " + str(self.visit_locations))
-        with open("map_made.map", 'w') as file:
-                    # Write content to the file
-                    for i in range(len(self.discovered_map)):
-                        for ii in range(len(self.discovered_map[i])):    
-                            file.write(str(self.discovered_map[i][ii]))
-                        file.write("\n")
-        beacon = self.measures.beacon
+        # with open("map_made.map", 'w') as file:
+        #             # Write content to the file
+        #             for i in range(len(self.discovered_map)):
+        #                 for ii in range(len(self.discovered_map[i])):    
+        #                     file.write(str(self.discovered_map[i][ii]))
+        #                 file.write("\n")
         ground = self.measures.ground
         print(ground)
         if ground > -1:
             self.target_position[ground] = (self.x_position, self.y_position)
-        all_beacons_mapped = len(set(self.target_position)) == len(self.target_position)
-        if all_beacons_mapped:
-            quit() 
+        all_target_mapped = len(set(self.target_position)) == len(self.target_position)
+
+        if all_target_mapped:
+            self.partial_path = []
+            self.final_path = []
+            
+            print(self.target_position)
+            del self.target_position[0]
+            start = (0, 0)
+            
+            while self.target_position:
+                next_target = self.planPath(self.target_position, self.free_cells, start)
+                print(str((next_target.x, next_target.y)))
+                start = (next_target.x, next_target.y)
+                self.target_position.remove(start)
+            
+                if next_target:
+                    while next_target:
+                        self.partial_path.append((next_target.x, next_target.y))
+                        next_target = next_target.parent
+                    self.partial_path=self.partial_path[::2]
+                    self.partial_path.reverse()
+                    self.final_path.append(self.partial_path)
+                    self.partial_path = []
+                    print(self.partial_path)
+
+            next_target = self.planPath([(0,0)], self.free_cells, start)
+            if next_target:
+                while next_target:
+                    self.partial_path.append((next_target.x, next_target.y))
+                    next_target = next_target.parent
+                self.partial_path=self.partial_path[::2]
+                self.partial_path.reverse()
+                self.final_path.append(self.partial_path)
+
+
+            print(self.final_path)
+
+            with open("path_made.path", 'w') as file:
+                for i in range(len(self.final_path)):
+                    if i > 0:
+                        del self.final_path[i][0]
+                    for ii in range(len(self.final_path[i])):    
+                        file.write(str(self.final_path[i][ii][0]))
+                        file.write(" ")
+                        file.write(str(-self.final_path[i][ii][1]))
+                        file.write("\n")
+
+
+            quit()
+            # for i in range(len(self.target_position) - 1):
+            #     self.manh_dist[i] = abs(self.target_position[i+1][0]) + abs(self.target_position[i+1][1])
+            # next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
+            # if next_location:
+            #     for i in range(len(self.target_position)):
+            #         next_dist = abs(next_location.x - self.target_position[i][0]) + abs(next_location.y - self.target_position[i][1])
+            #         current_dist = abs(self.x_position - self.target_position[i][0]) + abs(self.y_position - self.target_position[i][1])
+            #         if next_dist <= current_dist:
+            #             far_position = False
+            #             break
+            #         else: 
+            #             far_position = True
+            #     if far_position:
+            #         self.visited_locations.append((next_location.x, next_location.y))
+            #         try:
+            #             self.visit_locations.remove((next_location.x, next_location.y))       
+            #         except:
+            #             pass
+            # else:
+            #     quit()
 
 
     def find_next_location(self, visit_locations, free_cells, current_position):
@@ -355,6 +425,85 @@ class MyRob(CRobLinkAngs):
         else:
             return True
 
+    def planPath(self, targets, free_cells, start):
+        
+        closed_set = set()
+        open_set = [Node(start[0], start[1], g = 0, h = self.heuristic(start, targets))]
+
+        while open_set:
+            current_node = open_set.pop(0)
+            x, y = current_node.x, current_node.y
+
+            if (x, y) in closed_set:
+                continue
+            closed_set.add((x, y))
+
+            for goal in targets:
+                if goal[0] == x and goal[1] == y:
+                    return current_node
+
+            for dx, dy in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
+                new_x = x + dx
+                new_y = y + dy
+                new_g = 0
+                if (new_x, new_y) in free_cells:
+                    if current_node.parent:
+                        if (new_x, new_y) in self.free_cells:
+                            if (x - current_node.parent.x) == 0:
+                                if (new_x - x) == 0:
+                                    new_g = current_node.g + 1
+                                else:
+                                    new_g = current_node.g + 2
+                            else:
+                                if (new_y - y) == 0:
+                                    new_g = current_node.g + 1
+                                else:
+                                    new_g = current_node.g + 2
+                        else:
+                            new_g = current_node.g + 2
+                    new_h = self.heuristic((new_x, new_y), targets)
+                    new_node = Node(new_x, new_y, f= new_g + new_h, g = new_g, h = new_h, parent = current_node)
+                    print(new_h)
+
+                    if new_node not in open_set:
+                        open_set.append(new_node)
+                        open_set.sort(key=lambda node: node.f)  # Sort by f-value
+
+        return None
+    
+    def heuristic(self, current_pos, targets):
+    
+        min_distance = float('inf')
+        for target in targets:
+            distance = abs(current_pos[0] - target[0]) + abs(current_pos[1] - target[1])
+            min_distance = min(min_distance, distance)
+        return min_distance
+
+                    # for dx, dy in [(2, 0), (-2, 0), (0, -2), (0, 2)]:
+                    #     new_x = x + dx
+                    #     new_y = y + dy
+                    #     if parent:
+                    #         if (new_x, new_y) in self.free_cells:
+                    #             if (x - parent.x) == 0:
+                    #                 if (new_x - x) == 0:
+                    #                     g_value = distance + 2
+                    #                 else:
+                    #                     g_value = distance + 4
+                    #             else:
+                    #                 if (new_y - y) == 0:
+                    #                     g_value = distance + 2
+                    #                 else:
+                    #                     g_value = distance + 4
+                    #     else:
+                    #         g_value = distance + 2    
+                        
+                    #     h_value = abs(targets[ii][0] - new_x) + abs(targets[ii][1] - new_y)
+                    #     new_f_value = g_value + h_value
+                    #     print(new_f_value)
+                    # new_node = Node(new_x, new_y, g_value, current_node, new_f_value)
+                    # queue.append(new_node)
+
+
     def calibratePosition(self):
         self.x_offset = self.measures.x
         self.y_offset = -self.measures.y
@@ -419,6 +568,8 @@ class MyRob(CRobLinkAngs):
             beacon_values = self.measures.beacon
             for _ in range(len(beacon_values)):
                 self.target_position.append((0,0))
+                self.manh_dist.append(100)
+            self.manh_dist.pop(0)
 
 
         self.x_position = int(round(self.measures.x - self.x_offset))

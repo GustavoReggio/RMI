@@ -8,22 +8,22 @@
                                                        
                                                        
                                                        
-                                 - - - - - -           
-                                |XXXXXXXXXXX|          
-                         - - - - X - - - - X -         
-                        |XX0XXXXXXXXXXXXXX|XXX|        
-                         X - - - X - - - X - X -       
-                        |XXX|   |X|     |1XX|XXX|      
-                         - X     X       - X - X       
-                          |X|   |X|       |XXX|X|      
-                         - X     X - - - - - X X       
-                        |XXX|   |2XXXXXXXXXXXX|X|      
-                         X - - - - - - - - - - X       
-                        |XXXXXXXXXXXXXXXXXXXXXXX|      
-                         - - - - - - - - - - - -       
-                                                       
-                                                       
+                         - - - - - - - - - - - - - -   
+                        |XXXXXXX|XXXXXXXXX|XXXXXXXXX|  
+                         - - X - X - - - X X - X - X   
+                        |XX0XXXXXX|XXXXX|X|XXXXXXXXX|  
+                         X - X X X X - - X - X - - X   
+                        |XXX|XXXXXXX|XXX|1XX|XXX|XXX|  
+                         - X X - X - X X - X X X - X   
+                          |X|XXXXX|XXX|X| |XXXXX|XXX|  
+                         - X - - - X X X - - X X - X   
+                        |XXX|XXXX2XXXX|X|XXXXX|XXXXX|  
+                         X - X - - - X X X - - X - X   
+                        |X| |X|XXXXXXX|XXX|XXXXXXXXX|  
+                         X - X X - - X - - X - - - X   
+                        |XXXXXXXXXXXXXXXXXXXXXXXXXXX|  
+                         - - - - - - - - - - - - - -   
                                                        
                                                        
  0 1 2 0
-44.000000
+80.000000
