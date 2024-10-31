@@ -81,10 +81,10 @@ class MyRob(CRobLinkAngs):
         self.error = 0
         self.target_position = []
         self.tight_dist_thresh = 0.2
-        self.error_thresh = 0.1
-        self.loose_dist_thresh = 0.3
-        self.tight_ori_thresh = 5
-        self.loose_ori_thresh = 7
+        self.error_thresh = 0.2
+        self.loose_dist_thresh = 0.4
+        self.tight_ori_thresh = 12
+        self.loose_ori_thresh = 15
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not

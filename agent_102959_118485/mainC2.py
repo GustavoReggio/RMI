@@ -77,10 +77,10 @@ class MyRob(CRobLinkAngs):
         self.goal = 0
         self.error = 0
         self.tight_dist_thresh = 0.2
-        self.error_thresh = 0.1
-        self.loose_dist_thresh = 0.3
-        self.tight_ori_thresh = 5
-        self.loose_ori_thresh = 7
+        self.error_thresh = 0.2
+        self.loose_dist_thresh = 0.4
+        self.tight_ori_thresh = 12
+        self.loose_ori_thresh = 15  
 
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
