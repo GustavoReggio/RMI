@@ -117,8 +117,6 @@ class MyRob(CRobLinkAngs):
         except:
             middle_right_distance = 20
 
-        print('FL: '+str(wide_left_distance)+' FR: '+str(wide_right_distance)+' BL: '+str(middle_left_distance)+' BR: '+str(middle_right_distance))
-
         error1 = wide_right_proximity - wide_left_proximity
         error2 = middle_right_proximity - middle_left_proximity
 

@@ -117,8 +117,6 @@ class MyRob(CRobLinkAngs):
         back_distance = int(ceil(back_distance))
         right_distance = int(ceil(right_distance))
 
-        print('Center: '+str(center_distance)+' Left: '+str(left_distance)+' Back: '+str(back_distance)+' Right: '+str(right_distance))
-
         #Will we map it only looking forward, or will we map in the direction we are facing?
         if int(min((0, 9), key=lambda x:abs(x-(round(abs(self.direction)/10))))) == 0:
             if center_distance < 2:
@@ -240,10 +238,6 @@ class MyRob(CRobLinkAngs):
         set1 = set(self.visit_locations)
         set2 = set(self.visited_locations) 
         self.visit_locations = list(set1 - set2)
-        print(self.visited_locations)
-        for n in range(27):
-            print(self.discovered_map[n])
-        print("Visit Locations: " + str(self.visit_locations))
         with open("your_mapfile", 'w') as file:
                     # Write content to the file
                     for i in range(len(self.discovered_map)):
@@ -272,8 +266,24 @@ class MyRob(CRobLinkAngs):
                 new_x = x + dx
                 new_y = y + dy
                 if (new_x, new_y) in free_cells:
-                    new_node = Node(new_x, new_y, distance + 1, current_node)
+                    if current_node.parent:
+                        if (x - current_node.parent.x) == 0:
+                            if (new_x - x) == 0:
+                                new_distance = distance + 1
+                            else:
+                                new_distance = distance + 2
+                        else:
+                            if (new_y - y) == 0:
+                                new_distance = distance + 1
+                            else:
+                                new_distance = distance + 2
+                    else:
+                        new_distance = distance + 1 
+                    
+                    new_node = Node(new_x, new_y, new_distance, current_node)
+
                     queue.append(new_node)
+                    queue.sort(key=lambda node: node.distance)
 
     def moveSelf(self, objective, goal, error): 
         current_time = time.time()
@@ -301,7 +311,6 @@ class MyRob(CRobLinkAngs):
                 error_value = self.dx
 
             pid_value = abs(self.pid_controller.compute(error_value,dt))
-            print(distance_to_goal)
 
             if (objective == "forward"):
                 if distance_to_goal < 0.2:
@@ -327,7 +336,6 @@ class MyRob(CRobLinkAngs):
                     return False
             elif (objective == "turn left"):
                 if ((distance_to_goal < 7) & (distance_to_goal > -7)):
-                    print("Stop")
                     self.driveMotors(0, 0)
                     return True
                 else:
@@ -335,7 +343,6 @@ class MyRob(CRobLinkAngs):
                     return False
             elif (objective == "turn right"):
                 if (distance_to_goal < 7) & (distance_to_goal > -7):
-                    print("Stop")
                     self.driveMotors(0, 0)
                     return True
                 else:
@@ -452,9 +459,6 @@ class MyRob(CRobLinkAngs):
             self.dx = location.x - x_float_position
             self.dy = location.y - y_float_position
 
-            print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
-            print("Dx = " + str(self.dx)+ " Dy = " + str(self.dy))
-
             if self.is_idle:
                 if ((self.dy < 0.3) & (self.dy > -0.3)) & ((self.dx > 0.3) | (self.dx < -0.3)):
                     if ((self.direction < 7) & (self.direction > -7)):
@@ -488,8 +492,6 @@ class MyRob(CRobLinkAngs):
                     self.driveMotors(0,0)
                     del self.path[0]
 
-
-            print(str(self.objective) + " " + str(self.goal))
             self.is_idle = self.moveSelf(self.objective, self.goal, self.error)
 
                 
@@ -503,7 +505,6 @@ class MyRob(CRobLinkAngs):
                 self.objective = "adjust"
                 self.goal = min((0, 9), key=lambda x:abs(x-(round(abs(self.direction)/10))))
                 self.goal = str(int(self.goal * 10))
-                print(str(self.objective) + " " + str(self.goal))
                 if (self.goal == "0"):
                     if (self.direction > 0):
                         self.driveMotors(self.base_velocity, -self.base_velocity)
@@ -514,8 +515,6 @@ class MyRob(CRobLinkAngs):
                         self.driveMotors(self.base_velocity, -self.base_velocity)
                     elif (self.direction < 90):
                         self.driveMotors(-self.base_velocity, self.base_velocity)
-
-        print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
                 
 class Map():
     def __init__(self, filename):

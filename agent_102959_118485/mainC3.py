@@ -120,8 +120,6 @@ class MyRob(CRobLinkAngs):
         back_distance = int(ceil(back_distance))
         right_distance = int(ceil(right_distance))
 
-        print('Center: '+str(center_distance)+' Left: '+str(left_distance)+' Back: '+str(back_distance)+' Right: '+str(right_distance))
-
         #Will we map it only looking forward, or will we map in the direction we are facing?
         if int(min((0, 9), key=lambda x:abs(x-(round(abs(self.direction)/10))))) == 0:
             if center_distance < 2:
@@ -243,13 +241,7 @@ class MyRob(CRobLinkAngs):
         set1 = set(self.visit_locations)
         set2 = set(self.visited_locations) 
         self.visit_locations = list(set1 - set2)
-        print(self.target_position)
-        print(self.visited_locations)
-        for n in range(27):
-            print(self.discovered_map[n])
-        print("Visit Locations: " + str(self.visit_locations))
         ground = self.measures.ground
-        print(ground)
         if ground > -1:
             self.target_position[ground] = (self.x_position, self.y_position)
         all_target_mapped = len(set(self.target_position)) == len(self.target_position)
@@ -258,13 +250,11 @@ class MyRob(CRobLinkAngs):
             self.partial_path = []
             self.final_path = []
             
-            print(self.target_position)
             del self.target_position[0]
             start = (0, 0)
             
             while self.target_position:
                 next_target = self.planPath(self.target_position, self.free_cells, start)
-                print(str((next_target.x, next_target.y)))
                 start = (next_target.x, next_target.y)
                 self.target_position.remove(start)
             
@@ -276,7 +266,6 @@ class MyRob(CRobLinkAngs):
                     self.partial_path.reverse()
                     self.final_path.append(self.partial_path)
                     self.partial_path = []
-                    print(self.partial_path)
 
             next_target = self.planPath([(0,0)], self.free_cells, start)
             if next_target:
@@ -286,9 +275,6 @@ class MyRob(CRobLinkAngs):
                 self.partial_path=self.partial_path[::2]
                 self.partial_path.reverse()
                 self.final_path.append(self.partial_path)
-
-
-            print(self.final_path)
 
             with open("your_pathfile", 'w') as file:
                 for i in range(len(self.final_path)):
@@ -324,8 +310,24 @@ class MyRob(CRobLinkAngs):
                 new_x = x + dx
                 new_y = y + dy
                 if (new_x, new_y) in free_cells:
-                    new_node = Node(new_x, new_y, distance + 1, current_node)
+                    if current_node.parent:
+                        if (x - current_node.parent.x) == 0:
+                            if (new_x - x) == 0:
+                                new_distance = distance + 1
+                            else:
+                                new_distance = distance + 2
+                        else:
+                            if (new_y - y) == 0:
+                                new_distance = distance + 1
+                            else:
+                                new_distance = distance + 2
+                    else:
+                        new_distance = distance + 1 
+                    
+                    new_node = Node(new_x, new_y, new_distance, current_node)
+
                     queue.append(new_node)
+                    queue.sort(key=lambda node: node.distance)
 
     def moveSelf(self, objective, goal, error): 
         current_time = time.time()
@@ -353,7 +355,6 @@ class MyRob(CRobLinkAngs):
                 error_value = self.dx
 
             pid_value = abs(self.pid_controller.compute(error_value,dt))
-            print(distance_to_goal)
 
             if (objective == "forward"):
                 if distance_to_goal < 0.2:
@@ -379,7 +380,6 @@ class MyRob(CRobLinkAngs):
                     return False
             elif (objective == "turn left"):
                 if (abs(distance_to_goal) < 7):
-                    print("Stop")
                     self.driveMotors(0, 0)
                     return True
                 else:
@@ -387,7 +387,6 @@ class MyRob(CRobLinkAngs):
                     return False
             elif (objective == "turn right"):
                 if (abs(distance_to_goal) < 7):
-                    print("Stop")
                     self.driveMotors(0, 0)
                     return True
                 else:
@@ -504,7 +503,6 @@ class MyRob(CRobLinkAngs):
             self.calibratePosition()
             self.first_loop = False
             beacon_values = self.measures.beacon
-            print(beacon_values)
             for _ in range(len(beacon_values)):
                 self.target_position.append((0,0))
 
@@ -551,9 +549,6 @@ class MyRob(CRobLinkAngs):
             self.dx = location.x - x_float_position
             self.dy = location.y - y_float_position
 
-            print("Next X = " + str(location.x) + " Next Y = " + str(location.y))
-            print("Dx = " + str(self.dx)+ " Dy = " + str(self.dy))
-
             if self.is_idle:
                 if ((abs(self.dy) < 0.3) & (abs(self.dx) > 0.3)):
                     if (abs(self.direction) < 7):
@@ -587,8 +582,6 @@ class MyRob(CRobLinkAngs):
                     self.driveMotors(0,0)
                     del self.path[0]
 
-
-            print(str(self.objective) + " " + str(self.goal))
             self.is_idle = self.moveSelf(self.objective, self.goal, self.error)
 
                 
@@ -602,7 +595,6 @@ class MyRob(CRobLinkAngs):
                 self.objective = "adjust"
                 self.goal = min((0, 9), key=lambda x:abs(x-(round(abs(self.direction)/10))))
                 self.goal = str(int(self.goal * 10))
-                print(str(self.objective) + " " + str(self.goal))
                 if (self.goal == "0"):
                     if (self.direction > 0):
                         self.driveMotors(self.base_velocity, -self.base_velocity)
@@ -613,8 +605,6 @@ class MyRob(CRobLinkAngs):
                         self.driveMotors(self.base_velocity, -self.base_velocity)
                     elif (self.direction < 90):
                         self.driveMotors(-self.base_velocity, self.base_velocity)
-
-        print('X: '+str(self.x_position)+' Y: '+str(self.y_position)+' Direction: '+str(self.direction))
                 
 class Map():
     def __init__(self, filename):
