@@ -80,7 +80,11 @@ class MyRob(CRobLinkAngs):
         self.goal = 0
         self.error = 0
         self.target_position = []
-        self.manh_dist = []
+        self.tight_dist_thresh = 0.2
+        self.error_thresh = 0.1
+        self.loose_dist_thresh = 0.3
+        self.tight_ori_thresh = 5
+        self.loose_ori_thresh = 7
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -325,7 +329,6 @@ class MyRob(CRobLinkAngs):
                         new_distance = distance + 1 
                     
                     new_node = Node(new_x, new_y, new_distance, current_node)
-
                     queue.append(new_node)
                     queue.sort(key=lambda node: node.distance)
 
@@ -357,36 +360,36 @@ class MyRob(CRobLinkAngs):
             pid_value = abs(self.pid_controller.compute(error_value,dt))
 
             if (objective == "forward"):
-                if distance_to_goal < 0.2:
+                if distance_to_goal < self.tight_dist_thresh:
                     self.driveMotors(0, 0)
                     return True
-                elif error_value > 0.1:
+                elif error_value > self.error_thresh:
                     self.driveMotors(self.base_velocity, max(0, self.base_velocity - pid_value))
-                elif error_value < -0.1:
+                elif error_value < -self.error_thresh:
                     self.driveMotors(max(0, self.base_velocity - pid_value), self.base_velocity)
                 else:
                     self.driveMotors(self.base_velocity, self.base_velocity)
                     return False
             elif (objective == "backward"):
-                if distance_to_goal > -0.2:
+                if distance_to_goal > -self.tight_dist_thresh:
                     self.driveMotors(0, 0)
                     return True
-                elif error_value > 0.1:
+                elif error_value > self.error_thresh:
                     self.driveMotors(-self.base_velocity, -max(0, self.base_velocity - pid_value))
-                elif error_value < -0.1:
+                elif error_value < -self.error_thresh:
                     self.driveMotors(-max(0, self.base_velocity - pid_value), -self.base_velocity)
                 else:
                     self.driveMotors(-self.base_velocity, -self.base_velocity)
                     return False
             elif (objective == "turn left"):
-                if (abs(distance_to_goal) < 7):
+                if (abs(distance_to_goal) < self.loose_ori_thresh):
                     self.driveMotors(0, 0)
                     return True
                 else:
                     self.driveMotors(-self.base_velocity, self.base_velocity)
                     return False
             elif (objective == "turn right"):
-                if (abs(distance_to_goal) < 7):
+                if (abs(distance_to_goal) < self.loose_ori_thresh):
                     self.driveMotors(0, 0)
                     return True
                 else:
@@ -550,8 +553,8 @@ class MyRob(CRobLinkAngs):
             self.dy = location.y - y_float_position
 
             if self.is_idle:
-                if ((abs(self.dy) < 0.3) & (abs(self.dx) > 0.3)):
-                    if (abs(self.direction) < 7):
+                if ((abs(self.dy) < self.loose_dist_thresh) & (abs(self.dx) > self.loose_dist_thresh)):
+                    if (abs(self.direction) < self.loose_ori_thresh):
                         self.error = "dy"
                         self.goal = "dx"
                         if self.dx > 0:
@@ -564,8 +567,8 @@ class MyRob(CRobLinkAngs):
                             self.objective  = "turn right"
                         else:
                             self.objective = "turn left"
-                elif (abs(self.dy) > 0.3)& (abs(self.dx) < 0.3):
-                    if (abs(self.direction-90) < 7):
+                elif (abs(self.dy) > self.loose_dist_thresh)& (abs(self.dx) < self.loose_dist_thresh):
+                    if (abs(self.direction-90) < self.loose_ori_thresh):
                         self.goal = "dy"
                         self.error = "dx"
                         if self.dy > 0:
@@ -586,7 +589,7 @@ class MyRob(CRobLinkAngs):
 
                 
         else:
-            if ((abs(self.direction) < 5) | (abs(self.direction-90) < 5)):
+            if ((abs(self.direction) < self.tight_ori_thresh) | (abs(self.direction-90) < self.tight_ori_thresh)):
                 self.driveMotors(0,0)
                 self.is_idle = True
                 self.visited_locations.append((self.x_position, self.y_position))

@@ -14,7 +14,7 @@ sleep 3
 
 (cd agent_102959_118485; ./run.sh -c 1)
 
-# killall simulator
+killall simulator
 # killall Viewer
 
 echo Bye
