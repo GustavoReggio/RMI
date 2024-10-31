@@ -248,12 +248,6 @@ class MyRob(CRobLinkAngs):
         for n in range(27):
             print(self.discovered_map[n])
         print("Visit Locations: " + str(self.visit_locations))
-        # with open("map_made.map", 'w') as file:
-        #             # Write content to the file
-        #             for i in range(len(self.discovered_map)):
-        #                 for ii in range(len(self.discovered_map[i])):    
-        #                     file.write(str(self.discovered_map[i][ii]))
-        #                 file.write("\n")
         ground = self.measures.ground
         print(ground)
         if ground > -1:
@@ -308,27 +302,6 @@ class MyRob(CRobLinkAngs):
 
 
             quit()
-            # for i in range(len(self.target_position) - 1):
-            #     self.manh_dist[i] = abs(self.target_position[i+1][0]) + abs(self.target_position[i+1][1])
-            # next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
-            # if next_location:
-            #     for i in range(len(self.target_position)):
-            #         next_dist = abs(next_location.x - self.target_position[i][0]) + abs(next_location.y - self.target_position[i][1])
-            #         current_dist = abs(self.x_position - self.target_position[i][0]) + abs(self.y_position - self.target_position[i][1])
-            #         if next_dist <= current_dist:
-            #             far_position = False
-            #             break
-            #         else: 
-            #             far_position = True
-            #     if far_position:
-            #         self.visited_locations.append((next_location.x, next_location.y))
-            #         try:
-            #             self.visit_locations.remove((next_location.x, next_location.y))       
-            #         except:
-            #             pass
-            # else:
-            #     quit()
-
 
     def find_next_location(self, visit_locations, free_cells, current_position):
 
@@ -405,7 +378,7 @@ class MyRob(CRobLinkAngs):
                     self.driveMotors(-self.base_velocity, -self.base_velocity)
                     return False
             elif (objective == "turn left"):
-                if ((distance_to_goal < 7) & (distance_to_goal > -7)):
+                if (abs(distance_to_goal) < 7):
                     print("Stop")
                     self.driveMotors(0, 0)
                     return True
@@ -413,7 +386,7 @@ class MyRob(CRobLinkAngs):
                     self.driveMotors(-self.base_velocity, self.base_velocity)
                     return False
             elif (objective == "turn right"):
-                if (distance_to_goal < 7) & (distance_to_goal > -7):
+                if (abs(distance_to_goal) < 7):
                     print("Stop")
                     self.driveMotors(0, 0)
                     return True
@@ -463,7 +436,6 @@ class MyRob(CRobLinkAngs):
                             new_g = current_node.g + 2
                     new_h = self.heuristic((new_x, new_y), targets)
                     new_node = Node(new_x, new_y, f= new_g + new_h, g = new_g, h = new_h, parent = current_node)
-                    print(new_h)
 
                     if new_node not in open_set:
                         open_set.append(new_node)
@@ -478,31 +450,6 @@ class MyRob(CRobLinkAngs):
             distance = abs(current_pos[0] - target[0]) + abs(current_pos[1] - target[1])
             min_distance = min(min_distance, distance)
         return min_distance
-
-                    # for dx, dy in [(2, 0), (-2, 0), (0, -2), (0, 2)]:
-                    #     new_x = x + dx
-                    #     new_y = y + dy
-                    #     if parent:
-                    #         if (new_x, new_y) in self.free_cells:
-                    #             if (x - parent.x) == 0:
-                    #                 if (new_x - x) == 0:
-                    #                     g_value = distance + 2
-                    #                 else:
-                    #                     g_value = distance + 4
-                    #             else:
-                    #                 if (new_y - y) == 0:
-                    #                     g_value = distance + 2
-                    #                 else:
-                    #                     g_value = distance + 4
-                    #     else:
-                    #         g_value = distance + 2    
-                        
-                    #     h_value = abs(targets[ii][0] - new_x) + abs(targets[ii][1] - new_y)
-                    #     new_f_value = g_value + h_value
-                    #     print(new_f_value)
-                    # new_node = Node(new_x, new_y, g_value, current_node, new_f_value)
-                    # queue.append(new_node)
-
 
     def calibratePosition(self):
         self.x_offset = self.measures.x
@@ -550,16 +497,7 @@ class MyRob(CRobLinkAngs):
                 if self.measures.returningLed==True:
                     self.setReturningLed(False)
                 self.wander()
-    
-    def waitForSensor(self, default_value):
-        if self.counter > 0:
-            self.counter -= 1
-            return False
-        else:
-            self.counter = default_value
-            return True
-
-            
+                
     def wander(self):
 
         if self.first_loop:
@@ -568,9 +506,6 @@ class MyRob(CRobLinkAngs):
             beacon_values = self.measures.beacon
             for _ in range(len(beacon_values)):
                 self.target_position.append((0,0))
-                self.manh_dist.append(100)
-            self.manh_dist.pop(0)
-
 
         self.x_position = int(round(self.measures.x - self.x_offset))
         self.y_position = int(round(-self.measures.y - self.y_offset))
@@ -590,20 +525,19 @@ class MyRob(CRobLinkAngs):
 
         
         if self.map_position:
-            if self.waitForSensor(5):
-                self.path = []
-                self.mapLocation()
-                self.map_position = False
-        
-                next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
+            self.path = []
+            self.mapLocation()
+            self.map_position = False
+    
+            next_location = self.find_next_location(self.visit_locations, self.free_cells, (self.x_position, self.y_position))
 
-                if next_location:
-                    while next_location:
-                        self.path.append(next_location)
-                        next_location = next_location.parent
-                    self.path.reverse()
-                else:
-                    return   
+            if next_location:
+                while next_location:
+                    self.path.append(next_location)
+                    next_location = next_location.parent
+                self.path.reverse()
+            else:
+                return   
         
         if len(self.visit_locations) == 0:
             if len(self.free_cells) == 1:
@@ -620,8 +554,8 @@ class MyRob(CRobLinkAngs):
             print("Dx = " + str(self.dx)+ " Dy = " + str(self.dy))
 
             if self.is_idle:
-                if ((self.dy < 0.3) & (self.dy > -0.3)) & ((self.dx > 0.3) | (self.dx < -0.3)):
-                    if ((self.direction < 7) & (self.direction > -7)):
+                if ((abs(self.dy) < 0.3) & (abs(self.dx) > 0.3)):
+                    if (abs(self.direction) < 7):
                         self.error = "dy"
                         self.goal = "dx"
                         if self.dx > 0:
@@ -634,8 +568,8 @@ class MyRob(CRobLinkAngs):
                             self.objective  = "turn right"
                         else:
                             self.objective = "turn left"
-                elif ((self.dy > 0.3) | (self.dy < -0.3)) & ((self.dx < 0.3) & (self.dx > -0.3)):
-                    if ((self.direction < 97) & (self.direction > 83)):
+                elif (abs(self.dy) > 0.3)& (abs(self.dx) < 0.3):
+                    if (abs(self.direction-90) < 7):
                         self.goal = "dy"
                         self.error = "dx"
                         if self.dy > 0:
@@ -658,7 +592,7 @@ class MyRob(CRobLinkAngs):
 
                 
         else:
-            if ((self.direction < 5) & (self.direction > -5)) | ((self.direction < 95) & (self.direction > 85)):
+            if ((abs(self.direction) < 5) | (abs(self.direction-90) < 5)):
                 self.driveMotors(0,0)
                 self.is_idle = True
                 self.visited_locations.append((self.x_position, self.y_position))
