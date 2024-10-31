@@ -12,9 +12,9 @@ sleep 2
 
 sleep 3
 
-(cd pClient; ./s2.sh)
+(cd agent_102959_118485; ./run.sh -c 2)
 
-killall simulator
-killall Viewer
+# killall simulator
+# killall Viewer
 
 echo Bye

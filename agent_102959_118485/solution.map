@@ -11,13 +11,13 @@
                          - - - - - - - - - - - - - -   
                         |XXXXXXX|XXXXXXXXX|XXXXXXXXX|  
                          - - X - X - - - X X - X - X   
-                        |XX0XXXXXX|XXXXX|X|XXXXXXXXX|  
+                        |XXIXXXXXX|XXXXX|X|XXXXXXXXX|  
                          X - X X X X - - X - X - - X   
-                        |XXX|XXXXXXX|XXX|1XX|XXX|XXX|  
+                        |XXX|XXXXXXX|XXX|XXX|XXX|XXX|  
                          - X X - X - X X - X X X - X   
                           |X|XXXXX|XXX|X| |XXXXX|XXX|  
                          - X - - - X X X - - X X - X   
-                        |XXX|XXXX2XXXX|X|XXXXX|XXXXX|  
+                        |XXX|XXXXXXXXX|X|XXXXX|XXXXX|  
                          X - X - - - X X X - - X - X   
                         |X| |X|XXXXXXX|XXX|XXXXXXXXX|  
                          X - X X - - X - - X - - - X   
@@ -25,5 +25,3 @@
                          - - - - - - - - - - - - - -   
                                                        
                                                        
- 0 1 2 0
-80.000000

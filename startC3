@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ARGS="--param ../Labs/rmi-2425/C3-config.xml"
-ARGS+=" --lab ../Labs/rmi-2122/C3-lab.xml"
-ARGS+=" --grid ../Labs/rmi-2122/C3-grid.xml"
+ARGS+=" --lab ../Labs/rmi-2425/C3-lab.xml"
+ARGS+=" --grid ../Labs/rmi-2425/C3-grid.xml"
 ARGS+=" --scoring 3"
 (cd simulator; ./simulator $ARGS) &
 
@@ -12,10 +12,10 @@ sleep 2
 
 sleep 3
 
-(cd pClient; ./s3.sh)
+(cd agent_102959_118485; ./run.sh -c 3)
 
-killall simulator
-killall Viewer
+# killall simulator
+# killall Viewer
 
 
 echo Bye
