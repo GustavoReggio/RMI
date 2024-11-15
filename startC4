@@ -8,8 +8,13 @@ ARGS+=" --scoring 3"
 
 sleep 2
 
-(cd Viewer; ./Viewer --autoconnect)
+(cd Viewer; ./Viewer --autoconnect)&
+
+sleep 3
+
+(cd pClient; ./s4.sh)
 
 killall simulator
+killall Viewer
 
 echo Bye
