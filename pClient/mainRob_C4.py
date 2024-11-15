@@ -31,7 +31,6 @@ class FilterSensor:
             'right': [],
             'center': [],
             'back': [],
-            'compass': []
         }
 
     def add_value(self, sensor_id, new_value):
@@ -49,6 +48,64 @@ class FilterSensor:
         return  mean
 
 sensor_filter = FilterSensor(amostragem = 5)
+
+class KalmanFilter:
+    def __init__(self, initial_state, initial_covariance, process_noise, measurement_noise):
+        # Initialize state and covariance
+        self.x = initial_state  # Initial state (orientation)
+        self.P = initial_covariance  # Initial uncertainty
+
+        # Process noise (Q) and measurement noise (R)
+        self.Q = process_noise
+        self.R = measurement_noise
+
+    def predict(self, control_input, delta_t):
+        """
+        Prediction step of the Kalman Filter.
+
+        Parameters:
+        control_input (float): Angular velocity (e.g., control command).
+        delta_t (float): Time step duration.
+        """
+        # Update the state based on the motion model
+        self.x += control_input * delta_t
+
+        # Update the covariance estimate
+        self.P += self.Q
+
+    def update(self, measurement):
+        """
+        Update step of the Kalman Filter.
+
+        Parameters:
+        measurement (float): Noisy orientation measurement.
+        """
+        # Measurement residual
+        y = measurement - self.x
+
+        # Kalman gain
+        S = self.P + self.R
+        K = self.P / S
+
+        # Update state estimate
+        self.x += K * y
+
+        # Update covariance
+        self.P = (1 - K) * self.P
+
+    def get_state(self):
+        """
+        Returns the current estimated state.
+        """
+        return self.x
+
+kf = KalmanFilter(
+    initial_state = 0,  # Start at orientation 0
+    initial_covariance = 0,  # Initial uncertainty
+    process_noise = 1.5,  # Process noise covariance
+    measurement_noise = 2 # Measurement noise covariance
+)
+
 
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
@@ -121,12 +178,12 @@ class MyRob(CRobLinkAngs):
         back_id = 3
         # base_velocity = 0.15
 
-        # current_time = time.time()
-        # dt = current_time - self.last_time
-        # self.last_time = current_time
+        current_time = time.time()
+        dt = current_time - self.last_time
+        self.last_time = current_time
 
-        # if dt <= 0:
-        #     dt = 0.01
+        if dt <= 0:
+            dt = 0.01
 
         orientation_rad = self.measures.compass * pi / 180
 
@@ -134,13 +191,11 @@ class MyRob(CRobLinkAngs):
         sensor_filter.add_value('left', self.measures.irSensor[left_id])
         sensor_filter.add_value('right', self.measures.irSensor[right_id])
         sensor_filter.add_value('back', self.measures.irSensor[back_id])
-        sensor_filter.add_value('compass', orientation_rad)
 
         front_proximity = sensor_filter.get_filtered_value('center')
         left_proximity = sensor_filter.get_filtered_value('left')
         right_proximity = sensor_filter.get_filtered_value('right')
         back_proximity = sensor_filter.get_filtered_value('back')
-        orientation_measured = sensor_filter.get_filtered_value('compass')
 
         try :
             front_distance = 1 / front_proximity
@@ -181,21 +236,30 @@ class MyRob(CRobLinkAngs):
         x_estimate = self.previous_x + lin_speed * cos(self.previous_orientation)
         y_estimate = self.previous_y + lin_speed * sin(self.previous_orientation)
 
-        rot_speed = (out_right - out_left)
+        rot_speed = (out_right - out_left) * 180 / pi
         orientation_estimation = self.previous_orientation + rot_speed
 
         self.previous_out_left = out_left
         self.previous_out_right = out_right
-        if orientation_estimation > 3.14:
-            self.previous_orientation = orientation_estimation - 6.28
-        else:
-            self.previous_orientation = orientation_estimation
+        # if orientation_estimation > 3.14:
+        #     self.previous_orientation = orientation_estimation - 6.28
+        # elif orientation_estimation < -3.14:
+        #     self.previous_orientation = orientation_estimation + 6.28
+        # else:
+        #     self.previous_orientation = orientation_estimation
         self.previous_x = x_estimate
         self.previous_y = y_estimate
+        orientation_rad = self.measures.compass #* pi / 180
 
-        print('X: ' + str(x_estimate) + ' Y: ' + str(y_estimate) + ' Ori: ' + str(orientation_measured) + ' Ori_est: ' + str(orientation_estimation))
+        print('X: ' + str(x_estimate) + ' Y: ' + str(y_estimate) + ' Ori: ' + str(orientation_rad) + ' Ori_est: ' + str(orientation_estimation))
         # print(self.measures.beacon)
-        
+
+        kf.predict(rot_speed, dt)
+        kf.update(orientation_rad)
+        filteredOrientation = kf.get_state()
+        self.previous_orientation = filteredOrientation
+        print(filteredOrientation)
+
 class Map():
     def __init__(self, filename):
         tree = ET.parse(filename)
