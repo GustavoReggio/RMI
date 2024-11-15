@@ -23,6 +23,33 @@ class PIDController:
         output = self.kp * error + self.ki * self.integral + self.kd * derivative
         return output
 
+class FilterSensor:
+    def __init__(self, amostragem):
+        self.amostragem = amostragem
+        self.sensors = {
+            'left': [],
+            'right': [],
+            'center': [],
+            'back': [],
+            'compass': []
+        }
+
+    def add_value(self, sensor_id, new_value):
+        values = self.sensors[sensor_id]
+        if len(values) >= self.amostragem:
+            values.pop(0)  # Remove o valor mais antigo
+        values.append(new_value)
+
+    def get_filtered_value(self, sensor_id):
+        values = self.sensors[sensor_id]
+        if values:
+            mean = sum(values)/len(values)
+        else:
+            mean = 0 
+        return  mean
+
+sensor_filter = FilterSensor(amostragem = 5)
+
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
@@ -101,10 +128,19 @@ class MyRob(CRobLinkAngs):
         # if dt <= 0:
         #     dt = 0.01
 
-        front_proximity = self.measures.irSensor[front_id]
-        left_proximity = self.measures.irSensor[left_id]
-        right_proximity = self.measures.irSensor[right_id]
-        back_proximity = self.measures.irSensor[back_id]
+        orientation_rad = self.measures.compass * pi / 180
+
+        sensor_filter.add_value('center', self.measures.irSensor[front_id])
+        sensor_filter.add_value('left', self.measures.irSensor[left_id])
+        sensor_filter.add_value('right', self.measures.irSensor[right_id])
+        sensor_filter.add_value('back', self.measures.irSensor[back_id])
+        sensor_filter.add_value('compass', orientation_rad)
+
+        front_proximity = sensor_filter.get_filtered_value('center')
+        left_proximity = sensor_filter.get_filtered_value('left')
+        right_proximity = sensor_filter.get_filtered_value('right')
+        back_proximity = sensor_filter.get_filtered_value('back')
+        orientation_measured = sensor_filter.get_filtered_value('compass')
 
         try :
             front_distance = 1 / front_proximity
@@ -123,38 +159,8 @@ class MyRob(CRobLinkAngs):
         except:
             back_right_distance = 20
 
-        # print('FL: '+str(wide_left_distance)+' FR: '+str(wide_right_distance)+' BL: '+str(middle_left_distance)+' BR: '+str(middle_right_distance))
 
-        # error1 = wide_right_proximity - wide_left_proximity
-        # error2 = middle_right_proximity - middle_left_proximity
 
-        # pid_output1 = self.pid_controller.compute(error1, dt)
-        # pid_output2 = self.pid_controller.compute(error2, dt)
-
-        # pid_output = (pid_output1+pid_output2)/2
-
-        # if (wide_left_distance < 0.6) & (wide_right_distance < 0.6):# & (middle_left_distance < 0.8) & (middle_right_distance < 0.8):
-        #     if (error1 > 0.75) | (error2 > 0.75):
-        #         print('Smooth left')
-        #         self.driveMotors(max(base_velocity - pid_output,-0),+base_velocity)
-        #     elif (error1 < -0.75) | (error2 < -0.75):
-        #         print ('Smooth right')
-        #         self.driveMotors(+base_velocity,max(base_velocity+pid_output,-0))
-        #     else:
-        #         print('Go')
-        #         self.driveMotors(base_velocity,base_velocity)
-        # elif (wide_left_distance > 1.0) & (wide_right_distance > 1.0) & (middle_left_distance > 1.0) & (middle_right_distance > 1.0):
-        #     print('Crossway')
-        #     self.driveMotors(base_velocity,base_velocity)
-        # else:
-        #     if error1 > 0:
-        #         print('Sharp left')
-        #         self.driveMotors(max(base_velocity - pid_output,-base_velocity),+base_velocity)
-        #     elif error1 < 0:
-        #         print ('Sharp right')
-        #         self.driveMotors(+base_velocity,max(base_velocity+pid_output,-base_velocity))
-        orientation_rad = self.measures.compass * pi / 180
-        
         if front_distance < 1:
             speed_left = -0.1
             speed_right = 0.1
@@ -180,13 +186,15 @@ class MyRob(CRobLinkAngs):
 
         self.previous_out_left = out_left
         self.previous_out_right = out_right
-        self.previous_orientation = orientation_estimation
+        if orientation_estimation > 3.14:
+            self.previous_orientation = orientation_estimation - 6.28
+        else:
+            self.previous_orientation = orientation_estimation
         self.previous_x = x_estimate
         self.previous_y = y_estimate
 
-        print('X: ' + str(x_estimate) + ' Y: ' + str(y_estimate) + ' Ori: ' + str(orientation_rad) + ' Ori_est: ' + str(orientation_estimation))
-        print(self.measures.beacon)
-
+        print('X: ' + str(x_estimate) + ' Y: ' + str(y_estimate) + ' Ori: ' + str(orientation_measured) + ' Ori_est: ' + str(orientation_estimation))
+        # print(self.measures.beacon)
         
 class Map():
     def __init__(self, filename):
