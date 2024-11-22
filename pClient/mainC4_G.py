@@ -1,11 +1,14 @@
 import sys
 from croblink import *
-from math import *
+import math
+#from math import ceil ,floor
 import xml.etree.ElementTree as ET
-from random import *
+import time
+import threading
 
 CELLROWS=7
 CELLCOLS=14
+
 
 class PIDController:
     def __init__(self, kp, ki, kd, setpoint=0):
@@ -60,6 +63,13 @@ class KalmanFilter:
         self.R = measurement_noise
 
     def predict(self, control_input, delta_t):
+        """
+        Prediction step of the Kalman Filter.
+
+        Parameters:
+        control_input (float): Angular velocity (e.g., control command).
+        delta_t (float): Time step duration.
+        """
         # Update the state based on the motion model
         self.x += control_input * delta_t
 
@@ -67,6 +77,12 @@ class KalmanFilter:
         self.P += self.Q
 
     def update(self, measurement):
+        """
+        Update step of the Kalman Filter.
+
+        Parameters:
+        measurement (float): Noisy orientation measurement.
+        """
         # Measurement residual
         y = measurement - self.x
 
@@ -81,8 +97,10 @@ class KalmanFilter:
         self.P = (1 - K) * self.P
 
     def get_state(self):
+        """
+        Returns the current estimated state.
+        """
         return self.x
-
 
 kf = KalmanFilter(
     initial_state = 0,  # Start at orientation 0
@@ -91,31 +109,24 @@ kf = KalmanFilter(
     measurement_noise = 2 # Measurement noise covariance
 )
 
-class Point:
-    def __init__(self, x = 0, y = 0):
-        self.x = x
-        self.y = y
-    
-    def update(self, new_value, coordinate):
-        if coordinate == 'x':
-            self.x = new_value
-        elif coordinate == 'y':
-            self.y = new_value
 
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
         self.pid_controller = PIDController(0.25, 0.0, 0.0)
-        self.last_time = 0
+        self.last_time = time.time()
         self.previous_out_left = 0
         self.previous_out_right = 0
+        self.previous_x = 0
+        self.previous_y = 0
         self.previous_orientation = 0
-        self.previous_orientation_estimation = 0
         self.flag = False
-        self.objective = Point()
-        self.pos_estimate = Point()
-        self.previous_pos = Point()
-        self.is_idle = True
+        self.first_loop = True
+        self.wall_vertical_pos_aprox = [0,0]
+        self.front_distance = 0 
+        self.counter = 0  
+        
+        
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -126,6 +137,10 @@ class MyRob(CRobLinkAngs):
         for l in reversed(self.labMap):
             print(''.join([str(l) for l in l]))
 
+    def calibratePosition(self):
+       self.x_offset = self.measures.x
+       self.y_offset = -self.measures.y
+
     def run(self):
         if self.status != 0:
             print("Connection refused or error")
@@ -133,6 +148,7 @@ class MyRob(CRobLinkAngs):
 
         state = 'stop'
         stopped_state = 'run'
+        self.last_time = time.time()
 
         while True:
             self.readSensors()
@@ -167,46 +183,42 @@ class MyRob(CRobLinkAngs):
                 if self.measures.returningLed==True:
                     self.setReturningLed(False)
                 self.wander()
-
+            
     def wander(self):
         front_id = 0
         left_id = 1
         right_id = 2
         back_id = 3
-        base_velocity = 0.15
+        # base_velocity = 0.15
+        pi = math.pi
 
-        # -------------------
-        # Measurments
-        # -------------------
-
-        current_time = self.measures.time
+        current_time = time.time()
         dt = current_time - self.last_time
         self.last_time = current_time
 
-        orientation = self.measures.compass
-        kf.update(orientation)
-        
-        filtered_orientation = kf.get_state()
+        if dt <= 0:
+            dt = 0.01
 
+        orientation_rad = self.measures.compass * pi / 180
 
         sensor_filter.add_value('center', self.measures.irSensor[front_id])
         sensor_filter.add_value('left', self.measures.irSensor[left_id])
         sensor_filter.add_value('right', self.measures.irSensor[right_id])
         sensor_filter.add_value('back', self.measures.irSensor[back_id])
 
-        front_proximity = abs(sensor_filter.get_filtered_value('center'))
-        left_proximity = abs(sensor_filter.get_filtered_value('left'))
-        right_proximity = abs(sensor_filter.get_filtered_value('right'))
-        back_proximity = abs(sensor_filter.get_filtered_value('back'))
+        front_proximity = sensor_filter.get_filtered_value('center')
+        left_proximity = sensor_filter.get_filtered_value('left')
+        right_proximity = sensor_filter.get_filtered_value('right')
+        back_proximity = sensor_filter.get_filtered_value('back')
 
         try :
-            front_distance = 1 / front_proximity
+            self.front_distance = 1 / front_proximity
         except:
-            front_distance = 20
+            self.front_distance = 20
         try :
-            left_distance = 1 / left_proximity
+            self.left_distance = 1 / left_proximity
         except:
-            left_distance = 20
+            self.left_distance = 20
         try :
             right_distance = 1 / right_proximity
         except:
@@ -214,102 +226,116 @@ class MyRob(CRobLinkAngs):
         try :
             back_distance = 1 / back_proximity
         except:
-            back_distance = 20
+            back_right_distance = 20
 
-        # -------------------
-        # Wander Logic
-        # -------------------
 
-        dx = self.objective.x - self.pos_estimate.x
-        dy = self.objective.y - self.pos_estimate.y
-        print('dx: ' + str(dx) + ' dy: ' + str(dy))
-        if ((abs(dx) < 0.3) & (abs(dy) < 0.3)):
+
+        if self.front_distance < 1:
+            speed_left = -0.1
+            speed_right = 0.1
+            self.flag = True
+        elif self.flag:
             speed_left = 0
             speed_right = 0
-            
-            if self.flag:
-                self.objective.update(randrange(-2, 34),'x')
-                self.flag = False
-            else:
-                self.objective.update(randrange(-10, 2),'y')
-                self.flag = True
-        
-        elif ((abs(dx) > 0.3) & (abs(dy) < 0.3)):
-            if abs(filtered_orientation) < 7:
-                if dx > 0:
-                    speed_left = base_velocity
-                    speed_right = base_velocity
-            
-                elif dx < 0:
-                    speed_left = -base_velocity
-                    speed_right = -base_velocity
-            else:
-                speed_left = base_velocity
-                speed_right = -base_velocity
-        
-        elif ((abs(dx) < 0.3) & (abs(dy) > 0.3)):
-            if abs(filtered_orientation - 90) < 7:
-                if dy > 0:
-                    speed_left = base_velocity
-                    speed_right = base_velocity
-            
-                elif dy < 0:
-                    speed_left = -base_velocity
-                    speed_right = -base_velocity
-            else:
-                speed_left = -base_velocity
-                speed_right = base_velocity
         else:
-            speed_left = 0
-            speed_right = 0
-
-        # -------------------
-        # Actuation
-        # -------------------
+            speed_left = 0.1
+            speed_right = 0.1
 
         self.driveMotors(speed_left, speed_right)
-        
-        out_left = (speed_left + self.previous_out_left) / 2 # diameters per second
-        out_right = (speed_right + self.previous_out_right) / 2 # diameters per second
 
-        lin_speed = (out_left + out_right) / 2 # diameters per second
+        #-------------- Movement Model --------------#
+        out_left = (speed_left + self.previous_out_left) / 2
+        out_right = (speed_right + self.previous_out_right) / 2
 
-        rot_speed = out_right - out_left # radians per second
+        lin_speed = (out_left + out_right) / 2
+        self.x_estimate = self.previous_x + lin_speed * math.cos(self.previous_orientation)
+        self.y_estimate = self.previous_y + lin_speed * math.sin(self.previous_orientation)
 
-        # -------------------
-        # Prediction and Estimation
-        # -------------------
+        rot_speed = (out_right - out_left) * 180 / pi
+        orientation_estimation = self.previous_orientation + rot_speed
 
-        self.pos_estimate.update(self.previous_pos.x + lin_speed * cos(radians(self.previous_orientation)),'x')
-        self.pos_estimate.update(self.previous_pos.y + lin_speed * sin(radians(self.previous_orientation)),'y')
-
-        orientation_estimation = degrees(radians(self.previous_orientation_estimation) + rot_speed) # degrees
-
-        kf.predict(degrees(rot_speed), dt)
-
-        # -------------------
-        # Visualization
-        # -------------------
-        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
-        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
-        # print(self.measures.beacon)
-        print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
-        print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
-        # print(current_time)
-        # The values predicted by the filter and movement model, only take effect in the compass next cycle.
-        # This means, prediction and estimation should be done after actuation
-
-        # -------------------
-        # Update
-        # -------------------
         self.previous_out_left = out_left
         self.previous_out_right = out_right
+        # if orientation_estimation > 3.14:
+        #     self.previous_orientation = orientation_estimation - 6.28
+        # elif orientation_estimation < -3.14:
+        #     self.previous_orientation = orientation_estimation + 6.28
+        # else:
+        #     self.previous_orientation = orientation_estimation
+        if orientation_estimation >-90 and orientation_estimation < 90:
+            if self.x_estimate < self.previous_x:
+                self.x_estimate = self.previous_x
 
-        self.previous_pos.update(self.pos_estimate.x, 'x')
-        self.previous_pos.update(self.pos_estimate.y, 'y')
+            self.previous_x = self.x_estimate
+            self.previous_y = self.y_estimate
 
-        self.previous_orientation = filtered_orientation
-        self.previous_orientation_estimation = orientation_estimation
+        orientation_rad = self.measures.compass #* pi 
+        #-------------- --------------#
+
+        #-------------- mplement and test compass and beacon sensor integration for position estimation. --------------#
+        if self.first_loop:
+            print('VALOR INICIAL X GLOBAL')
+            print('GLOBALX:'+ str(self.measures.x) +'  Y:'+ str(self.measures.y)+'\n\n')
+            self.calibratePosition()
+            self.first_loop = False
+
+        
+        self.x_position = int(round(self.measures.x - self.x_offset))
+        self.y_position = int(round(-self.measures.y - self.y_offset))
+        print('GPS->  X:'+ str(self.x_position) +'  Y:'+ str(self.y_position))
+        #print('X: ' + str(x_estimate) + ' Y: ' + str(y_estimate) + ' Ori: ' + str(orientation_rad) + ' Ori_est: ' + str(orientation_estimation))
+        print(f'X: {self.x_estimate:.4f} Y: {self.y_estimate:.4f} Ori: {orientation_rad:.4f} Ori_est: {orientation_estimation:.4f}')
+        # print(self.measures.beacon)
+
+        kf.predict(rot_speed, dt)
+        kf.update(orientation_rad)
+        filteredOrientation = kf.get_state()
+        self.previous_orientation = filteredOrientation
+        print(filteredOrientation)
+
+        print(f'sensor front: {self.front_distance}')
+        print(f'sensor left: {self.left_distance}')
+        self.wall_vertical_pos = self.x_estimate + self.front_distance + 0.6
+        self.wall_vertical_pos_aprox = [math.ceil(self.wall_vertical_pos),math.floor(self.wall_vertical_pos)]
+        print(f'Posição x paredes {self.wall_vertical_pos_aprox}')
+        
+        #Cheking X axis
+        # if orientation_estimation > -3 and orientation_estimation < 3:
+        #     if 
+        if self.front_distance <=0.96:
+            self.counting_time()
+            self.counter=0
+
+        # self.counter = self.counter+1
+        # if self.counter ==10:
+        #     self.counting_time()
+        #     self.counter=0
+        
+
+        print('\n')
+        # intervalo_verificacao = 3
+        # # Cria e inicia um thread para a verificação dos sensores
+        # sensor_thread = threading.Thread(target=self.counting_time, args=(intervalo_verificacao,))
+        # sensor_thread.daemon = True  # O programa principal pode encerrar mesmo com o thread rodando
+        # sensor_thread.start()
+        #-------------- --------------#
+    
+    def counting_time(self):
+
+        # #mudar logica do par da parede 
+        if self.wall_vertical_pos_aprox[0] %2!=0:
+            self.x_checked = self.wall_vertical_pos_aprox[0] - self.front_distance -0.6
+        else:
+            self.x_checked = self.wall_vertical_pos_aprox[1] - self.front_distance -0.6
+        print('!!!!!!!!!!!!!!!!!!!')
+        print(f'X checado: {self.x_checked:.4f}')
+        if self.x_checked <=self.x_estimate:
+            self.x_checked= self.x_estimate
+        self.previous_x  = self.x_checked
+       
+
+
+       
 
 class Map():
     def __init__(self, filename):
@@ -364,3 +390,4 @@ if __name__ == '__main__':
         rob.printMap()
     
     rob.run()
+
