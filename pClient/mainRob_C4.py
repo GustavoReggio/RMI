@@ -105,7 +105,7 @@ class Point:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(0.25, 0.0, 0.0)
+        self.pid_controller = PIDController(0.15, 0.0, 0.0)
         self.last_time = 0
         self.previous_out_left = 0
         self.previous_out_right = 0
@@ -116,6 +116,7 @@ class MyRob(CRobLinkAngs):
         self.pos_estimate = Point()
         self.previous_pos = Point()
         self.is_idle = True
+        self.order = ""
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -167,6 +168,65 @@ class MyRob(CRobLinkAngs):
                 if self.measures.returningLed==True:
                     self.setReturningLed(False)
                 self.wander()
+    
+    def getSpeeds(self, goal, position, orientation, order, velocity, dt):
+        dx = goal.x - position.x
+        dy = goal.y - position.y
+        
+        if (order == "forward") | (order == "backward"):
+            if int(min((0, 9), key=lambda x:abs(x-(round(abs(orientation)/10))))) == 0:
+                distance_to_goal = dx
+                error = -dy # Compatibility issues - dx positive means turn left, while dy positive means turn right
+            else:
+                distance_to_goal = dy
+                error = dx
+
+            pid_value = abs(self.pid_controller.compute(error,dt))
+
+            if distance_to_goal > 0.3:
+                if error > 0.1:
+                    speed_left = velocity
+                    speed_right = max(0, velocity - pid_value)
+                elif error < -0.1:
+                    speed_left = max(0, velocity - pid_value)
+                    speed_right = velocity
+                else:
+                    speed_left = velocity
+                    speed_right = velocity
+                
+                return False, speed_left, speed_right
+            
+            elif distance_to_goal < -0.3:
+
+                if error > 0.1:
+                    speed_left = -velocity
+                    speed_right = -max(0, velocity - pid_value)
+                elif error < -0.1:
+                    speed_left = -max(0, velocity - pid_value)
+                    speed_right = -velocity
+                else:
+                    speed_left = -velocity
+                    speed_right = -velocity
+                
+                return False, speed_left, speed_right
+            
+            else:
+                return True, 0, 0
+        
+        elif (order == "turn left") | (order == "turn right"):
+            velocity = velocity / 2
+            if order == "turn left":
+                if abs(90 - orientation) > 7:
+                    return False, -velocity, velocity
+                else:
+                    return True, 0, 0
+            else:   
+                if abs(orientation) > 7:
+                    return False, velocity, -velocity
+                else:
+                    return True, 0, 0
+        else:
+            return True, 0, 0
 
     def wander(self):
         front_id = 0
@@ -224,45 +284,64 @@ class MyRob(CRobLinkAngs):
         dy = self.objective.y - self.pos_estimate.y
         print('dx: ' + str(dx) + ' dy: ' + str(dy))
         if ((abs(dx) < 0.3) & (abs(dy) < 0.3)):
+            
             speed_left = 0
             speed_right = 0
             
             if self.flag:
-                self.objective.update(randrange(-2, 34),'x')
+                min_x = -2
+                max_x = 24
+                lower = max(min_x, int(self.pos_estimate.x - 5))
+                upper = min(max_x, int(self.pos_estimate.x + 5))
+                self.objective.update(randrange(lower, upper),'x')
                 self.flag = False
             else:
-                self.objective.update(randrange(-10, 2),'y')
+                min_y = -10
+                max_y = 2
+                lower = max(min_y, int(self.pos_estimate.y - 5))
+                upper = min(max_y, int(self.pos_estimate.y + 5))
+                self.objective.update(randrange(lower, upper),'y')
                 self.flag = True
         
-        elif ((abs(dx) > 0.3) & (abs(dy) < 0.3)):
-            if abs(filtered_orientation) < 7:
-                if dx > 0:
-                    speed_left = base_velocity
-                    speed_right = base_velocity
+        print(self.is_idle)
+        print(self.order)
+        if self.is_idle:
+            if ((abs(dx) > 0.3) & (abs(dy) < 0.3)):
+                if abs(filtered_orientation) < 7:
+                    if dx > 0:
+                        self.order = "forward"
+                        # speed_left = base_velocity
+                        # speed_right = base_velocity
+                
+                    elif dx < 0:
+                        self.order = "backward"
+                        # speed_left = -base_velocity
+                        # speed_right = -base_velocity
+                else:
+                    self.order = "turn right"
+                    # speed_left = base_velocity
+                    # speed_right = -base_velocity
             
-                elif dx < 0:
-                    speed_left = -base_velocity
-                    speed_right = -base_velocity
+            elif ((abs(dx) < 0.3) & (abs(dy) > 0.3)):
+                if abs(filtered_orientation - 90) < 7:
+                    if dy > 0:
+                        self.order = "forward"
+                        # speed_left = base_velocity
+                        # speed_right = base_velocity
+                
+                    elif dy < 0:
+                        self.order = "backward"
+                        # speed_left = -base_velocity
+                        # speed_right = -base_velocity
+                else:
+                    self.order = "turn left"
+                    # speed_left = -base_velocity
+                    # speed_right = base_velocity
             else:
-                speed_left = base_velocity
-                speed_right = -base_velocity
-        
-        elif ((abs(dx) < 0.3) & (abs(dy) > 0.3)):
-            if abs(filtered_orientation - 90) < 7:
-                if dy > 0:
-                    speed_left = base_velocity
-                    speed_right = base_velocity
-            
-                elif dy < 0:
-                    speed_left = -base_velocity
-                    speed_right = -base_velocity
-            else:
-                speed_left = -base_velocity
-                speed_right = base_velocity
-        else:
-            speed_left = 0
-            speed_right = 0
+                self.order = "stop"
 
+        self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity,dt)
+        
         # -------------------
         # Actuation
         # -------------------
