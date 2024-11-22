@@ -60,13 +60,6 @@ class KalmanFilter:
         self.R = measurement_noise
 
     def predict(self, control_input, delta_t):
-        """
-        Prediction step of the Kalman Filter.
-
-        Parameters:
-        control_input (float): Angular velocity (e.g., control command).
-        delta_t (float): Time step duration.
-        """
         # Update the state based on the motion model
         self.x += control_input * delta_t
 
@@ -74,12 +67,6 @@ class KalmanFilter:
         self.P += self.Q
 
     def update(self, measurement):
-        """
-        Update step of the Kalman Filter.
-
-        Parameters:
-        measurement (float): Noisy orientation measurement.
-        """
         # Measurement residual
         y = measurement - self.x
 
@@ -94,10 +81,8 @@ class KalmanFilter:
         self.P = (1 - K) * self.P
 
     def get_state(self):
-        """
-        Returns the current estimated state.
-        """
         return self.x
+
 
 kf = KalmanFilter(
     initial_state = 0,  # Start at orientation 0
@@ -178,14 +163,9 @@ class MyRob(CRobLinkAngs):
         back_id = 3
         # base_velocity = 0.15
 
-        current_time = time.time()
+        current_time = self.measures.time
         dt = current_time - self.last_time
         self.last_time = current_time
-
-        if dt <= 0:
-            dt = 0.01
-
-        orientation_rad = self.measures.compass * pi / 180
 
         sensor_filter.add_value('center', self.measures.irSensor[front_id])
         sensor_filter.add_value('left', self.measures.irSensor[left_id])
@@ -212,9 +192,7 @@ class MyRob(CRobLinkAngs):
         try :
             back_distance = 1 / back_proximity
         except:
-            back_right_distance = 20
-
-
+            back_distance = 20
 
         if front_distance < 1:
             speed_left = -0.1
@@ -229,36 +207,36 @@ class MyRob(CRobLinkAngs):
 
         self.driveMotors(speed_left, speed_right)
 
+        orientation = self.measures.compass
+
         out_left = (speed_left + self.previous_out_left) / 2
         out_right = (speed_right + self.previous_out_right) / 2
 
         lin_speed = (out_left + out_right) / 2
-        x_estimate = self.previous_x + lin_speed * cos(self.previous_orientation)
-        y_estimate = self.previous_y + lin_speed * sin(self.previous_orientation)
+        x_estimate = self.previous_x + lin_speed * cos(radians(self.previous_orientation))
+        y_estimate = self.previous_y + lin_speed * sin(radians(self.previous_orientation))
 
-        rot_speed = (out_right - out_left) * 180 / pi
-        orientation_estimation = self.previous_orientation + rot_speed
+        rot_speed = out_right - out_left
+        orientation_estimation = self.previous_orientation + degrees(rot_speed)
 
         self.previous_out_left = out_left
         self.previous_out_right = out_right
-        # if orientation_estimation > 3.14:
-        #     self.previous_orientation = orientation_estimation - 6.28
-        # elif orientation_estimation < -3.14:
-        #     self.previous_orientation = orientation_estimation + 6.28
-        # else:
-        #     self.previous_orientation = orientation_estimation
+
         self.previous_x = x_estimate
         self.previous_y = y_estimate
-        orientation_rad = self.measures.compass #* pi / 180
 
-        print('X: ' + str(x_estimate) + ' Y: ' + str(y_estimate) + ' Ori: ' + str(orientation_rad) + ' Ori_est: ' + str(orientation_estimation))
+        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(x_estimate))
+        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(y_estimate))
         # print(self.measures.beacon)
+        print('F: ' + str(front_distance) + ' B: ' + str(back_distance) + ' L: ' + str(left_distance) + ' R: ' + str(right_distance))
+        kf.update(orientation)
+        kf.predict(degrees(rot_speed), dt)
+        filtered_orientation = kf.get_state()
+        self.previous_orientation = orientation_estimation #filteredOrientation
+        print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(orientation_estimation) + ' Orienataion_fil: ' + str(filtered_orientation))
 
-        kf.predict(rot_speed, dt)
-        kf.update(orientation_rad)
-        filteredOrientation = kf.get_state()
-        self.previous_orientation = filteredOrientation
-        print(filteredOrientation)
+        # The values predicted by the filter and movement model, only take effect in the compass next cycle.
+        # This means, prediction and estimation should be done after actuation
 
 class Map():
     def __init__(self, filename):
