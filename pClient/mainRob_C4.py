@@ -101,6 +101,23 @@ class Point:
             self.x = new_value
         elif coordinate == 'y':
             self.y = new_value
+    
+    # Não sei o que estas funções em baixo fazem ao certo, mas o chatgpt sugeriu como forma de corrigir um erro na comparação e funcionou
+    def __eq__(self, other):
+        return isinstance(other, Point) and self.x == other.x and self.y == other.y
+
+    def __hash__(self):
+        return hash((self.x, self.y))
+
+class Node:
+  def __init__(self, x, y, f, g, h, parent = None):
+    self.x = x
+    self.y = y
+    self.f = f
+    self.g = g
+    self.h = h
+    self.parent = parent 
+
 
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
@@ -111,12 +128,68 @@ class MyRob(CRobLinkAngs):
         self.previous_out_right = 0
         self.previous_orientation = 0
         self.previous_orientation_estimation = 0
-        self.flag = False
+        self.flag = True
         self.objective = Point()
         self.pos_estimate = Point()
         self.previous_pos = Point()
         self.is_idle = True
         self.order = ""
+        self.path = []
+
+
+    def find_next_location(self, visit_locations, free_cells, current_position):
+
+        closed_set = set()
+        open_set = [Node(current_position.x, current_position.y, 0, 0, self.heuristic(current_position, visit_locations))]
+
+        while open_set:
+            current_node = open_set.pop(0)
+            x, y = current_node.x, current_node.y
+            if (x, y) in closed_set:
+                continue
+            closed_set.add((x, y))
+
+            for goal in visit_locations:
+                if goal.x == x and goal.y == y:
+                    return current_node
+
+            for dx, dy in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
+                new_x = x + dx
+                new_y = y + dy
+                new_g = 0
+                print(free_cells)
+                if Point(new_x, new_y) in free_cells:
+                    if current_node.parent:
+                        if Point(new_x, new_y) in free_cells:
+                            if (x - current_node.parent.x) == 0:
+                                if (new_x - x) == 0:
+                                    new_g = current_node.g + 1
+                                else:
+                                    new_g = current_node.g + 2
+                            else:
+                                if (new_y - y) == 0:
+                                    new_g = current_node.g + 1
+                                else:
+                                    new_g = current_node.g + 2
+                        else:
+                            new_g = current_node.g + 2
+                    new_h = self.heuristic(Point(new_x, new_y), visit_locations)
+                    new_node = Node(new_x, new_y, new_g + new_h, new_g, new_h, current_node)
+
+                    if new_node not in open_set:
+                        open_set.append(new_node)
+                        open_set.sort(key=lambda node: node.f)  # Sort by f-value
+
+        return None
+
+    def heuristic(self, current_pos, targets):
+    
+        min_distance = float('inf')
+        for target in targets:
+            distance = abs(current_pos.x - target.x) + abs(current_pos.y - target.y)
+            min_distance = min(min_distance, distance)
+        return min_distance
+
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -277,70 +350,74 @@ class MyRob(CRobLinkAngs):
             back_distance = 20
 
         # -------------------
+        # Path Planning
+        # -------------------
+        if self.flag:
+            next_location = self.find_next_location([Point(0,-10),Point(0,-5)], [Point(0,0),Point(0,-1),Point(0,-2),Point(1,-2),Point(2,-2),Point(2,-3),Point(2,-4),Point(1,-4),Point(0,-4),Point(0,-5),Point(0,-6),Point(0,-7),Point(0,-8),Point(0,-9),Point(0,-10)], Point(0, 0))
+            if next_location:
+                while next_location:
+                    self.path.append(next_location)
+                    next_location = next_location.parent
+                self.path.reverse()
+            else:
+                return
+            self.flag = False
+
+        if self.path:
+            self.objective.update(self.path[0].x, 'x')
+            self.objective.update(self.path[0].y, 'y')
+
+            dx = self.path[0].x - self.pos_estimate.x
+            dy = self.path[0].y - self.pos_estimate.y
+
+        # -------------------
         # Wander Logic
         # -------------------
 
-        dx = self.objective.x - self.pos_estimate.x
-        dy = self.objective.y - self.pos_estimate.y
-        print('dx: ' + str(dx) + ' dy: ' + str(dy))
-        if ((abs(dx) < 0.3) & (abs(dy) < 0.3)):
+        #dx = self.objective.x - self.pos_estimate.x
+        #dy = self.objective.y - self.pos_estimate.y
+        #if ((abs(dx) < 0.3) & (abs(dy) < 0.3)):
             
-            speed_left = 0
-            speed_right = 0
+            #speed_left = 0
+            #speed_right = 0
             
-            if self.flag:
-                min_x = -2
-                max_x = 24
-                lower = max(min_x, int(self.pos_estimate.x - 5))
-                upper = min(max_x, int(self.pos_estimate.x + 5))
-                self.objective.update(randrange(lower, upper),'x')
-                self.flag = False
-            else:
-                min_y = -10
-                max_y = 2
-                lower = max(min_y, int(self.pos_estimate.y - 5))
-                upper = min(max_y, int(self.pos_estimate.y + 5))
-                self.objective.update(randrange(lower, upper),'y')
-                self.flag = True
+            # if self.flag:
+            #     min_x = -2
+            #     max_x = 24
+            #     lower = max(min_x, int(self.pos_estimate.x - 5))
+            #     upper = min(max_x, int(self.pos_estimate.x + 5))
+            #     self.objective.update(randrange(lower, upper),'x')
+            #     self.flag = False
+            # else:
+            #     min_y = -10
+            #     max_y = 2
+            #     lower = max(min_y, int(self.pos_estimate.y - 5))
+            #     upper = min(max_y, int(self.pos_estimate.y + 5))
+            #     self.objective.update(randrange(lower, upper),'y')
+            #     self.flag = True
         
-        print(self.is_idle)
-        print(self.order)
         if self.is_idle:
             if ((abs(dx) > 0.3) & (abs(dy) < 0.3)):
                 if abs(filtered_orientation) < 7:
                     if dx > 0:
-                        self.order = "forward"
-                        # speed_left = base_velocity
-                        # speed_right = base_velocity
-                
+                        self.order = "forward"                
                     elif dx < 0:
                         self.order = "backward"
-                        # speed_left = -base_velocity
-                        # speed_right = -base_velocity
                 else:
-                    self.order = "turn right"
-                    # speed_left = base_velocity
-                    # speed_right = -base_velocity
-            
+                    self.order = "turn right"            
             elif ((abs(dx) < 0.3) & (abs(dy) > 0.3)):
                 if abs(filtered_orientation - 90) < 7:
                     if dy > 0:
-                        self.order = "forward"
-                        # speed_left = base_velocity
-                        # speed_right = base_velocity
-                
+                        self.order = "forward"                
                     elif dy < 0:
                         self.order = "backward"
-                        # speed_left = -base_velocity
-                        # speed_right = -base_velocity
                 else:
                     self.order = "turn left"
-                    # speed_left = -base_velocity
-                    # speed_right = base_velocity
             else:
                 self.order = "stop"
+                del self.path[0]
 
-        self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity,dt)
+        self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
         
         # -------------------
         # Actuation
@@ -369,11 +446,14 @@ class MyRob(CRobLinkAngs):
         # -------------------
         # Visualization
         # -------------------
-        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
-        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
+        print('dx: ' + str(dx) + ' dy: ' + str(dy))
+        print(self.order)
+        print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
+        #print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
+        #print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
         # print(self.measures.beacon)
-        print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
-        print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
+        #print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
+        #print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
         # print(current_time)
         # The values predicted by the filter and movement model, only take effect in the compass next cycle.
         # This means, prediction and estimation should be done after actuation
