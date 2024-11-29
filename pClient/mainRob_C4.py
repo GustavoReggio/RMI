@@ -333,11 +333,11 @@ class MyRob(CRobLinkAngs):
 
             pid_value = abs(self.pid_controller.compute(error,dt))
 
-            if distance_to_goal > 0.2:
-                if error > 0.1:
+            if distance_to_goal > 0.1:
+                if error > 0.2:
                     speed_left = velocity
                     speed_right = max(0, velocity - pid_value)
-                elif error < -0.1:
+                elif error < -0.2:
                     speed_left = max(0, velocity - pid_value)
                     speed_right = velocity
                 else:
@@ -346,12 +346,12 @@ class MyRob(CRobLinkAngs):
                 
                 return False, speed_left, speed_right
             
-            elif distance_to_goal < -0.2:
+            elif distance_to_goal < -0.1:
 
-                if error > 0.1:
+                if error > 0.2:
                     speed_left = -velocity
                     speed_right = -max(0, velocity - pid_value)
-                elif error < -0.1:
+                elif error < -0.2:
                     speed_left = -max(0, velocity - pid_value)
                     speed_right = -velocity
                 else:
@@ -399,7 +399,8 @@ class MyRob(CRobLinkAngs):
         orientation = self.measures.compass
         kf.update(orientation)
         
-        filtered_orientation = kf.get_state()
+        #filtered_orientation = kf.get_state()
+        filtered_orientation = orientation
 
         sensor_filter.add_value('center', self.measures.irSensor[front_id])
         sensor_filter.add_value('left', self.measures.irSensor[left_id])
@@ -460,9 +461,9 @@ class MyRob(CRobLinkAngs):
             self.objective.update(self.path[0].point.y, 'y')
 
             dx = self.path[0].point.x - self.pos_estimate.x
-            dy = self.path[0].point.y - self.pos_estimate.y        
+            dy = self.path[0].point.y - self.pos_estimate.y
         else:
-            self.map_flag = True
+            self.map_flag = True        
 
         # -------------------
         # Wander Logic
@@ -470,7 +471,7 @@ class MyRob(CRobLinkAngs):
         
         if self.is_idle & (len(self.path) != 0):
             if ((abs(dx) > 0.2) & (abs(dy) < 0.2)):
-                if abs(filtered_orientation) < 7:
+                if abs(filtered_orientation) < 10:
                     if dx > 0:
                         self.order = "forward"                
                     elif dx < 0:
@@ -478,7 +479,7 @@ class MyRob(CRobLinkAngs):
                 else:
                     self.order = "turn right"            
             elif ((abs(dx) < 0.2) & (abs(dy) > 0.2)):
-                if abs(filtered_orientation - 90) < 7:
+                if abs(filtered_orientation - 90) < 10:
                     if dy > 0:
                         self.order = "forward"                
                     elif dy < 0:
@@ -486,11 +487,25 @@ class MyRob(CRobLinkAngs):
                 else:
                     self.order = "turn left"
             else:
-                self.order = "adjust"
+                self.order = "stop"
                 del self.path[0]
 
-        print(dt)
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
+
+        if not self.path:
+            if ((abs(filtered_orientation) < 7) | (abs(filtered_orientation-90) < 7)):
+                speed_left = 0
+                speed_right = 0
+                self.is_idle = True
+                self.map_flag = True
+            else:
+                goal = min((0, 9), key=lambda x:abs(x-(round(abs(filtered_orientation)/10))))
+                if (filtered_orientation > (goal * 10)):
+                    speed_left = base_velocity / 2
+                    speed_right = -base_velocity / 2
+                elif (filtered_orientation < (goal * 10)):
+                    speed_left = -base_velocity / 2
+                    speed_right = base_velocity / 2
         
         # -------------------
         # Actuation
@@ -520,6 +535,7 @@ class MyRob(CRobLinkAngs):
         # Visualization
         # -------------------
         self.map.printMap()
+        print(self.map.unexplored_cells)
         # print('dx: ' + str(dx) + ' dy: ' + str(dy))
         # print(self.order)
         # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
