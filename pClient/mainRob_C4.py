@@ -102,7 +102,7 @@ class Point:
         elif coordinate == 'y':
             self.y = new_value
     
-    # Não sei o que estas funções em baixo fazem ao certo, mas o chatgpt sugeriu como forma de corrigir um erro na comparação e funcionou
+    # Nao sei o que estas funcoes em baixo fazem ao certo, mas o chatgpt sugeriu como forma de corrigir um erro na comparacao e funcionou
     def __eq__(self, other):
         return isinstance(other, Point) and self.x == other.x and self.y == other.y
 
@@ -110,14 +110,59 @@ class Point:
         return hash((self.x, self.y))
 
 class Node:
-  def __init__(self, x, y, f, g, h, parent = None):
-    self.x = x
-    self.y = y
+  def __init__(self, point, f, g, h, parent = None):
+    self.point = point
     self.f = f
     self.g = g
     self.h = h
     self.parent = parent 
 
+class OwnMap:
+    def __init__(self):
+        self.discovered_map = [[' ' for _ in range(55)] for _ in range(27)]
+        self.offset = Point(27,13)
+        self.discovered_map[self.offset.y][self.offset.x] = '0'
+        self.unexplored_cells = []
+        self.explored_cells = [Point()]
+        self.free_cells = [Point()]
+        self.vertical_walls = []
+        self.horizontal_walls = []
+        self.beacons = [(Point(), 0)]
+    
+    def updateMap(self, point, state, beacon = None):
+        if state == 'free':
+            if point not in self.free_cells:
+                self.free_cells.append(point)
+                if ((point.x % 2 == 0) & (point.y % 2 == 0)): 
+                    self.unexplored_cells.append(point)
+        elif state == 'v_wall':
+            if point not in self.vertical_walls:
+                self.vertical_walls.append(point)
+        elif state == 'h_wall':
+            if point not in self.horizontal_walls:
+                self.horizontal_walls.append(point)
+        elif state == 'beacon':
+            if (point, beacon) not in self.beacons:
+                self.beacons.append((point, beacon))
+        elif state == 'mapped':
+            if point not in self.explored_cells:
+                self.explored_cells.append(point)
+                self.unexplored_cells = [i for i in self.unexplored_cells if i not in self.explored_cells]
+
+        for point in self.free_cells:
+            self.discovered_map[self.offset.y - point.y][self.offset.x + point.x] = 'X'
+        for point in self.vertical_walls:
+            self.discovered_map[self.offset.y - point.y][self.offset.x + point.x] = '|'
+        for point in self.horizontal_walls:
+            self.discovered_map[self.offset.y - point.y][self.offset.x + point.x] = '-'
+        for beacon in self.beacons:
+            self.discovered_map[self.offset.y - beacon[0].y][self.offset.x + beacon[0].x] = str(beacon[1])
+        
+    def printMap(self):
+        print('-----//-----')
+        for n in range(len(self.discovered_map)):
+            print(self.discovered_map[n])
+        print('-----//-----')
 
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
@@ -128,23 +173,29 @@ class MyRob(CRobLinkAngs):
         self.previous_out_right = 0
         self.previous_orientation = 0
         self.previous_orientation_estimation = 0
-        self.flag = True
+        self.map_flag = True
+        self.plan_flag = False
         self.objective = Point()
         self.pos_estimate = Point()
         self.previous_pos = Point()
         self.is_idle = True
         self.order = ""
         self.path = []
+        self.map = OwnMap()
 
 
-    def find_next_location(self, visit_locations, free_cells, current_position):
-
+    def find_next_location(self, visit_locations, free_cells, current_position, current_orientation = None):
+        
+        deltas = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        
+        position_int = Point(int(round(current_position.x)), int(round(current_position.y)))
         closed_set = set()
-        open_set = [Node(current_position.x, current_position.y, 0, 0, self.heuristic(current_position, visit_locations))]
+        open_set = [Node(position_int, 0, 0, self.heuristic(position_int, visit_locations))]
 
         while open_set:
             current_node = open_set.pop(0)
-            x, y = current_node.x, current_node.y
+            x, y = current_node.point.x, current_node.point.y
+            
             if (x, y) in closed_set:
                 continue
             closed_set.add((x, y))
@@ -153,28 +204,18 @@ class MyRob(CRobLinkAngs):
                 if goal.x == x and goal.y == y:
                     return current_node
 
-            for dx, dy in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
+            if current_orientation: # Prioritize going straight
+                if int(min((0, 9), key=lambda x: abs(x - round(abs(current_orientation) / 10)))) == 9:
+                    deltas = [(0, 1), (0, -1), (1, 0), (-1, 0),]
+
+            for dx, dy in deltas:
                 new_x = x + dx
                 new_y = y + dy
                 new_g = 0
-                print(free_cells)
                 if Point(new_x, new_y) in free_cells:
-                    if current_node.parent:
-                        if Point(new_x, new_y) in free_cells:
-                            if (x - current_node.parent.x) == 0:
-                                if (new_x - x) == 0:
-                                    new_g = current_node.g + 1
-                                else:
-                                    new_g = current_node.g + 2
-                            else:
-                                if (new_y - y) == 0:
-                                    new_g = current_node.g + 1
-                                else:
-                                    new_g = current_node.g + 2
-                        else:
-                            new_g = current_node.g + 2
+                    new_g = current_node.g + 1              
                     new_h = self.heuristic(Point(new_x, new_y), visit_locations)
-                    new_node = Node(new_x, new_y, new_g + new_h, new_g, new_h, current_node)
+                    new_node = Node(Point(new_x, new_y), new_g + new_h, new_g, new_h, current_node)
 
                     if new_node not in open_set:
                         open_set.append(new_node)
@@ -190,6 +231,42 @@ class MyRob(CRobLinkAngs):
             min_distance = min(min_distance, distance)
         return min_distance
 
+    def map_location(self, direction, sensor_readings, ground_readings):
+        if int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 0:
+            obj_pos_x = ceil(sensor_readings[0])
+            obj_neg_x = ceil(sensor_readings[1])
+            obj_pos_y = ceil(sensor_readings[2])
+            obj_neg_y = ceil(sensor_readings[3])
+        elif int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 9:
+            obj_pos_x = ceil(sensor_readings[3])
+            obj_neg_x = ceil(sensor_readings[2])
+            obj_pos_y = ceil(sensor_readings[0])
+            obj_neg_y = ceil(sensor_readings[1])
+
+        measures = [obj_pos_x, obj_neg_x, obj_pos_y, obj_neg_y]
+        deltas = [Point(1,0), Point(-1,0), Point(0,1), Point(0,-1)]
+
+        estimated_x = int(round(self.pos_estimate.x))
+        estimated_y = int(round(self.pos_estimate.y))
+
+        n = 0
+        for distance in measures:
+            delta = deltas[n]
+            if distance < 2:
+                if n < 2:
+                    self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'v_wall')
+                else:
+                    self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'h_wall')
+            else:
+                self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'free')
+                self.map.updateMap(Point(estimated_x + (2*delta.x), estimated_y + (2*delta.y)), 'free')
+                        
+            n += 1
+
+        if ground_readings > -1:
+            self.map.updateMap(Point(estimated_x,estimated_y), 'beacon', ground_readings)
+        
+        self.map.updateMap(Point(estimated_x, estimated_y), 'mapped')
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -256,7 +333,7 @@ class MyRob(CRobLinkAngs):
 
             pid_value = abs(self.pid_controller.compute(error,dt))
 
-            if distance_to_goal > 0.3:
+            if distance_to_goal > 0.2:
                 if error > 0.1:
                     speed_left = velocity
                     speed_right = max(0, velocity - pid_value)
@@ -269,7 +346,7 @@ class MyRob(CRobLinkAngs):
                 
                 return False, speed_left, speed_right
             
-            elif distance_to_goal < -0.3:
+            elif distance_to_goal < -0.2:
 
                 if error > 0.1:
                     speed_left = -velocity
@@ -287,19 +364,23 @@ class MyRob(CRobLinkAngs):
                 return True, 0, 0
         
         elif (order == "turn left") | (order == "turn right"):
-            velocity = velocity / 2
             if order == "turn left":
-                if abs(90 - orientation) > 7:
-                    return False, -velocity, velocity
-                else:
-                    return True, 0, 0
-            else:   
-                if abs(orientation) > 7:
-                    return False, velocity, -velocity
-                else:
-                    return True, 0, 0
+                goal_orientation = 90
+            else:
+                goal_orientation = 0
+
+            distance_to_goal = goal_orientation - orientation
+            
+            if distance_to_goal > 7:
+                return False, -velocity, velocity
+            elif distance_to_goal < - 7:
+                return False, velocity, -velocity
+            else:
+                return True, 0, 0
+        
         else:
             return True, 0, 0
+
 
     def wander(self):
         front_id = 0
@@ -311,7 +392,6 @@ class MyRob(CRobLinkAngs):
         # -------------------
         # Measurments
         # -------------------
-
         current_time = self.measures.time
         dt = current_time - self.last_time
         self.last_time = current_time
@@ -320,7 +400,6 @@ class MyRob(CRobLinkAngs):
         kf.update(orientation)
         
         filtered_orientation = kf.get_state()
-
 
         sensor_filter.add_value('center', self.measures.irSensor[front_id])
         sensor_filter.add_value('left', self.measures.irSensor[left_id])
@@ -349,55 +428,48 @@ class MyRob(CRobLinkAngs):
         except:
             back_distance = 20
 
+        sensor_readings = [front_distance, back_distance, left_distance, right_distance]
+
+        ground_reading = self.measures.ground
+        # -------------------
+        # Mapping
+        # -------------------
+        
+        if self.map_flag:
+            self.map_location(filtered_orientation, sensor_readings, ground_reading)
+            self.map_flag = False
+            self.plan_flag = True
+
         # -------------------
         # Path Planning
         # -------------------
-        if self.flag:
-            next_location = self.find_next_location([Point(0,-10),Point(0,-5)], [Point(0,0),Point(0,-1),Point(0,-2),Point(1,-2),Point(2,-2),Point(2,-3),Point(2,-4),Point(1,-4),Point(0,-4),Point(0,-5),Point(0,-6),Point(0,-7),Point(0,-8),Point(0,-9),Point(0,-10)], Point(0, 0))
-            if next_location:
-                while next_location:
-                    self.path.append(next_location)
-                    next_location = next_location.parent
-                self.path.reverse()
+        if self.plan_flag:
+            if self.map.unexplored_cells:
+                next_location = self.find_next_location(self.map.unexplored_cells, self.map.free_cells, self.pos_estimate, filtered_orientation)
+                if next_location:
+                    while next_location:
+                        self.path.append(next_location)
+                        next_location = next_location.parent
+                    self.path.reverse()
+                self.plan_flag = False
             else:
-                return
-            self.flag = False
+                self.finish()
 
         if self.path:
-            self.objective.update(self.path[0].x, 'x')
-            self.objective.update(self.path[0].y, 'y')
+            self.objective.update(self.path[0].point.x, 'x')
+            self.objective.update(self.path[0].point.y, 'y')
 
-            dx = self.path[0].x - self.pos_estimate.x
-            dy = self.path[0].y - self.pos_estimate.y
+            dx = self.path[0].point.x - self.pos_estimate.x
+            dy = self.path[0].point.y - self.pos_estimate.y        
+        else:
+            self.map_flag = True
 
         # -------------------
         # Wander Logic
         # -------------------
-
-        #dx = self.objective.x - self.pos_estimate.x
-        #dy = self.objective.y - self.pos_estimate.y
-        #if ((abs(dx) < 0.3) & (abs(dy) < 0.3)):
-            
-            #speed_left = 0
-            #speed_right = 0
-            
-            # if self.flag:
-            #     min_x = -2
-            #     max_x = 24
-            #     lower = max(min_x, int(self.pos_estimate.x - 5))
-            #     upper = min(max_x, int(self.pos_estimate.x + 5))
-            #     self.objective.update(randrange(lower, upper),'x')
-            #     self.flag = False
-            # else:
-            #     min_y = -10
-            #     max_y = 2
-            #     lower = max(min_y, int(self.pos_estimate.y - 5))
-            #     upper = min(max_y, int(self.pos_estimate.y + 5))
-            #     self.objective.update(randrange(lower, upper),'y')
-            #     self.flag = True
         
-        if self.is_idle:
-            if ((abs(dx) > 0.3) & (abs(dy) < 0.3)):
+        if self.is_idle & (len(self.path) != 0):
+            if ((abs(dx) > 0.2) & (abs(dy) < 0.2)):
                 if abs(filtered_orientation) < 7:
                     if dx > 0:
                         self.order = "forward"                
@@ -405,7 +477,7 @@ class MyRob(CRobLinkAngs):
                         self.order = "backward"
                 else:
                     self.order = "turn right"            
-            elif ((abs(dx) < 0.3) & (abs(dy) > 0.3)):
+            elif ((abs(dx) < 0.2) & (abs(dy) > 0.2)):
                 if abs(filtered_orientation - 90) < 7:
                     if dy > 0:
                         self.order = "forward"                
@@ -414,9 +486,10 @@ class MyRob(CRobLinkAngs):
                 else:
                     self.order = "turn left"
             else:
-                self.order = "stop"
+                self.order = "adjust"
                 del self.path[0]
 
+        print(dt)
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
         
         # -------------------
@@ -446,9 +519,10 @@ class MyRob(CRobLinkAngs):
         # -------------------
         # Visualization
         # -------------------
-        print('dx: ' + str(dx) + ' dy: ' + str(dy))
-        print(self.order)
-        print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
+        self.map.printMap()
+        # print('dx: ' + str(dx) + ' dy: ' + str(dy))
+        # print(self.order)
+        # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
         #print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
         #print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
         # print(self.measures.beacon)
