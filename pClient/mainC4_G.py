@@ -224,16 +224,16 @@ class MyRob(CRobLinkAngs):
         except:
             self.right_distance = 20
         try :
-            back_distance = 1 / back_proximity
+            self.back_distance = 1 / back_proximity
         except:
-            back_right_distance = 20
+            self.back_distance = 20
 
 
 
         if self.front_distance < 1:
             speed_left = -0.1
             speed_right = 0.1
-            self.flag = True
+            # self.flag = True
         elif self.flag:
             speed_left = 0
             speed_right = 0
@@ -241,11 +241,17 @@ class MyRob(CRobLinkAngs):
             speed_left = 0.1
             speed_right = 0.1
 
-        self.driveMotors(speed_left, speed_right)
 
         #-------------- Movement Model --------------#
-        out_left = (speed_left + self.previous_out_left) / 2
-        out_right = (speed_right + self.previous_out_right) / 2
+
+        speed_wheel_L =  speed_left
+        speed_wheel_R =  speed_right
+        self.driveMotors(speed_wheel_L, speed_wheel_R)
+       
+        # out_left = (speed_left + self.previous_out_left) / 2
+        out_left = (speed_wheel_L + self.previous_out_left) / 2
+        # out_right = (speed_right + self.previous_out_right) / 2
+        out_right = (speed_wheel_R + self.previous_out_right) / 2
 
         lin_speed = (out_left + out_right) / 2
         self.x_estimate = self.previous_x + lin_speed * cos(radians(self.previous_orientation))
@@ -256,23 +262,20 @@ class MyRob(CRobLinkAngs):
 
         self.previous_out_left = out_left
         self.previous_out_right = out_right
+
         # if orientation_estimation > 3.14:
         #     self.previous_orientation = orientation_estimation - 6.28
         # elif orientation_estimation < -3.14:
         #     self.previous_orientation = orientation_estimation + 6.28
         # else:
         #     self.previous_orientation = orientation_estimation
-        if orientation_estimation >-90 and orientation_estimation < 90:
-            if self.x_estimate < self.previous_x:
-                self.x_estimate = self.previous_x
 
-            self.previous_x = self.x_estimate
-            self.previous_y = self.y_estimate
-
+        self.previous_x = self.x_estimate
+        self.previous_y = self.y_estimate
         orientation_rad = self.measures.compass #* pi 
-        #-------------- --------------#
+        #----------------------------#
 
-        #-------------- mplement and test compass and beacon sensor integration for position estimation. --------------#
+        #-------------- Implement and test compass and beacon sensor integration for position estimation. --------------#
         if self.first_loop:
             self.calibratePosition()
             self.first_loop = False
@@ -288,68 +291,192 @@ class MyRob(CRobLinkAngs):
         kf.update(orientation_rad)
         filteredOrientation = kf.get_state()
         self.previous_orientation = filteredOrientation
-        print(filteredOrientation)
-
+        print(f'filter ori: {filteredOrientation:.4f}')
+        print('')
         print(f'sensor front: {self.front_distance}')
+        print(f'sensor back: {self.back_distance}')
         print(f'sensor left: {self.left_distance}')
         print(f'sensor right {self.right_distance}')
+        print('')
         
         #Cheking X and Y horizontaly
-        if orientation_estimation > -5 and orientation_estimation  < 5:
-            if self.front_distance <=1.125:
-                self.cheking_X(pos='horizontal')
+        if orientation_estimation > -3 and orientation_estimation  < 3:
+            ori_ = 'horizontal'
+            print('!!!!!!!!- HORIZONTAL -!!!!!!!!!!!')
+            if self.front_distance <=1.125 or self.back_distance <=1.125:
+                self.cheking_X(pos=ori_)
             if self.right_distance <=1.125 or self.left_distance <1.125:
-                self.cheking_Y(pos='horizontal')
+                self.cheking_Y(pos=ori_)
+
+        #Cheking X and Y verticaly
+        if orientation_estimation > 87 and orientation_estimation  < 93:
+            ori_ = 'vertical'
+            print('!!!!!!!!- Vertical -!!!!!!!!!!!')
+            if self.front_distance <=1.125 or self.back_distance <=1.125:
+                self.cheking_Y(pos=ori_)
+            if self.right_distance <=1.125 or self.left_distance <1.125:
+                self.cheking_X(pos=ori_)
                                       
-        # Checking Y
+        
 
         print('\n')
         #-------------- --------------#
     
     def cheking_X(self,pos):
         match pos:
+            #----------------------------#
             case 'horizontal':
-                self.wall_vertical_pos = self.x_estimate + self.front_distance + 0.6
+                #correctinf sensor                
+                if self.front_distance <=1.125:
+                    distancia_robo = self.front_distance + 0.6
+                else:
+                    distancia_robo = -(self.back_distance + 0.6)
+                print('!! - X - !!')
+                self.wall_vertical_pos = self.x_estimate + distancia_robo
                 self.wall_vertical_pos_aprox = [ceil(self.wall_vertical_pos),floor(self.wall_vertical_pos)]
                 print(f'Posição x paredes {self.wall_vertical_pos_aprox}')
 
+                # Rever este critério
                 if self.wall_vertical_pos_aprox[0] %2==0:
-                    self.x_checked = self.wall_vertical_pos_aprox[0] - self.front_distance -0.6
+                    self.x_checked = self.wall_vertical_pos_aprox[0] - distancia_robo
                 else:
-                    self.x_checked = self.wall_vertical_pos_aprox[1] - self.front_distance -0.6
-                print('!!!!!!!!- HORIZONTAL -!!!!!!!!!!!')
-                print(f'X checado: {self.x_checked:.4f}')
-
-                if self.x_checked <=self.x_estimate:
-                    self.x_checked= self.x_estimate
-                self.previous_x  = self.x_checked
-            
-            case 'vertical':
-                print('!!!!!!!!- Vertical -!!!!!!!!!!!')
-
-    def cheking_Y(self,pos):
-            
-        match pos:
-            case 'horizontal':
-                #Left
-                self.wall_horiszoantal_pos_l = self.y_estimate + self.left_distance + 0.6
-                self.wall_horizontal_pos_aprox_l = [ceil(self.wall_horiszoantal_pos_l),floor(self.wall_horiszoantal_pos_l)]
-                #Right
-                self.wall_horiszoantal_pos_r = self.y_estimate -( self.right_distance + 0.6)
-                self.wall_horizontal_pos_aprox_r = [ceil(self.wall_horiszoantal_pos_r),floor(self.wall_horiszoantal_pos_r)]
-                print(f'Posição Y paredes L {self.wall_horizontal_pos_aprox_l}')
-                print(f'Posição Y paredes R {self.wall_horizontal_pos_aprox_r}')
-
-                # if self.wall_vertical_pos_aprox[0] %2==0:
-                #     self.x_checked = self.wall_vertical_pos_aprox[0] - self.front_distance -0.6
-                # else:
-                #     self.x_checked = self.wall_vertical_pos_aprox[1] - self.front_distance -0.6
-                # print('!!!!!!!!!!!!!!!!!!!')
-                # print(f'X checado: {self.x_checked:.4f}')
-
+                    self.x_checked = self.wall_vertical_pos_aprox[1] - distancia_robo
                 # if self.x_checked <=self.x_estimate:
                 #     self.x_checked= self.x_estimate
-                # self.previous_x  = self.x_checked     
+                # self.previous_x  = self.x_checked
+                print(f'X = {self.x_checked:.4f}')
+                # if abs(self.x_checked )- floor(abs(self.x_checked)) <= 0.5:
+                #     self.previous_x  = floor(self.x_checked)
+                # else:
+                #     self.previous_x  = ceil(self.x_checked)
+                if abs(self.x_checked) - floor(abs(self.x_checked)) <= 0.5:
+                    self.previous_x = self.round_towards_zero(self.x_checked)
+                else:
+                    self.previous_x = self.round_towards_zero(self.x_checked) + (1 if self.x_checked > 0 else -1)
+                print(f'X checado: {self.previous_x:.4f}')
+            #----------------------------#
+            case 'vertical':
+                print('!! - X - !!')
+                if self.right_distance > 1.125:
+                    distancia_r = self.left_distance
+                else:
+                    distancia_r = self.right_distance
+
+                if self.left_distance > 1.125:
+                    disancia_l = self.right_distance
+                else:
+                    disancia_l = self.left_distance
+                #------------------- Left
+                self.wall_vertical_pos_l = self.x_estimate -(disancia_l + 0.6)
+                self.wall_vertical_pos_aprox_l = [ceil(self.wall_vertical_pos_l),floor(self.wall_vertical_pos_l)]
+                print(f'Posição X paredes L {self.wall_vertical_pos_aprox_l}')
+                # Rever este critério
+                if self.wall_vertical_pos_aprox_l[0] %2!=0:
+                    self.x_checked_l = self.wall_vertical_pos_aprox_l[0] + (disancia_l + 0.6)
+                else:
+                    self.x_checked_l = self.wall_vertical_pos_aprox_l[1] + (disancia_l + 0.6)
+                print(f'X L checado: {self.x_checked_l:.4f}')
+                #------------------- Right
+                self.wall_vertical_pos_r = self.x_estimate + ( distancia_r + 0.6)
+                self.wall_vertical_pos_aprox_r = [ceil(self.wall_vertical_pos_r),floor(self.wall_vertical_pos_r)]
+                print(f'Posição X paredes R {self.wall_vertical_pos_aprox_r}')
+                # Rever este critério
+                if self.wall_vertical_pos_aprox_r[0] %2!=0:
+                    self.x_checked_r = self.wall_vertical_pos_aprox_r[0] - (distancia_r + 0.6)
+                else:
+                    self.x_checked_r = self.wall_vertical_pos_aprox_r[1] - (distancia_r + 0.6)
+                print(f'X R checado: {self.x_checked_r:.4f}')   
+                #------------------- CHECK         
+                self.x_checked = (self.x_checked_l + self.x_checked_r)/2
+                print(f'X= {self.x_checked:.4f}')
+                if self.x_checked - floor(self.x_checked) <= 0.5:
+                    self.previous_x  = floor(self.x_checked)
+                else:
+                    self.previous_x  = ceil(self.x_checked)
+                print(f'X checado: {self.previous_x:.4f}')
+            #----------------------------#
+
+
+    def cheking_Y(self,pos):
+        match pos:
+            #----------------------------#
+            case 'horizontal':
+                if self.right_distance > 1.125:
+                    distancia_r = self.left_distance
+                else:
+                    distancia_r = self.right_distance
+
+                if self.left_distance > 1.125:
+                    disancia_l = self.right_distance
+                else:
+                    disancia_l = self.left_distance
+                #------------------- Left
+                print('!! - Y - !!')
+                self.wall_horiszoantal_pos_l = self.y_estimate + disancia_l + 0.6
+                self.wall_horizontal_pos_aprox_l = [ceil(self.wall_horiszoantal_pos_l),floor(self.wall_horiszoantal_pos_l)]
+                print(f'Posição Y paredes L {self.wall_horizontal_pos_aprox_l}')
+                # Rever este critério
+                if self.wall_horizontal_pos_aprox_l[0] %2!=0:
+                    self.y_checked_l = self.wall_horizontal_pos_aprox_l[0] - disancia_l -0.6
+                else:
+                    self.y_checked_l = self.wall_horizontal_pos_aprox_l[1] - disancia_l -0.6
+                print(f'Y L checado: {self.y_checked_l:.4f}')
+                #------------------- Right
+                self.wall_horiszoantal_pos_r = self.y_estimate -( distancia_r + 0.6)
+                self.wall_horizontal_pos_aprox_r = [ceil(self.wall_horiszoantal_pos_r),floor(self.wall_horiszoantal_pos_r)]
+                print(f'Posição Y paredes R {self.wall_horizontal_pos_aprox_r}')
+                # Rever este critério
+                if self.wall_horizontal_pos_aprox_r[0] %2!=0:
+                    self.y_checked_r = self.wall_horizontal_pos_aprox_r[0] + distancia_r +0.6
+                else:
+                    self.y_checked_r = self.wall_horizontal_pos_aprox_r[1] + distancia_r +0.6
+                print(f'Y R checado: {self.y_checked_r:.4f}')   
+                #------------------- CHECK         
+                self.y_checked = (self.y_checked_l + self.y_checked_r)/2
+                print(f'Y= {self.y_checked:.4f}')
+                if self.y_checked - floor(self.y_checked) <= 0.5:
+                    self.previous_y  = floor(self.y_checked)
+                else:
+                    self.previous_y  = ceil(self.y_checked)
+                print(f'Y checado: {self.previous_y:.4f}')
+            #----------------------------#
+            case 'vertical':
+                print('!! - Y - !!')
+                #correctinf sensor                
+                if self.front_distance <=1.125:
+                    distancia_robo = self.front_distance + 0.6
+                else:
+                    distancia_robo = -(self.back_distance + 0.6)
+                self.wall_horizontal_pos = self.y_estimate + distancia_robo
+                self.wall_horizontal_pos_aprox = [ceil(self.wall_horizontal_pos),floor(self.wall_horizontal_pos)]
+                print(f'Posição Y paredes {self.wall_horizontal_pos_aprox}')
+
+                # Rever este critério
+                if self.wall_horizontal_pos_aprox[0] %2==0:
+                    self.y_checked = self.wall_horizontal_pos_aprox[0] - distancia_robo
+                else:
+                    self.y_checked_checked = self.wall_horizontal_pos_aprox[1] - distancia_robo
+                # if self.x_checked <=self.x_estimate:
+                #     self.x_checked= self.x_estimate
+                # self.previous_x  = self.x_checked
+                print(f'Y = {self.y_checked:.4f}')
+                # if abs(self.x_checked )- floor(abs(self.x_checked)) <= 0.5:
+                #     self.previous_x  = floor(self.x_checked)
+                # else:
+                #     self.previous_x  = ceil(self.x_checked)
+                if abs(self.y_checked) - floor(abs(self.y_checked)) <= 0.5:
+                    self.previous_y = self.round_towards_zero(self.y_checked)
+                else:
+                    self.previous_y = self.round_towards_zero(self.y_checked) + (1 if self.y_checked > 0 else -1)
+                print(f'Y checado: {self.previous_y:.4f}')
+            #----------------------------#
+        
+    def round_towards_zero(self,value):
+        if value >= 0:
+            return floor(value)  # Para valores positivos, usa floor
+        else:
+            return ceil(value)   # Para valores negativos, usa ceil
+   
 
 
        
