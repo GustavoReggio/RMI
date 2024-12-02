@@ -267,6 +267,8 @@ class MyRob(CRobLinkAngs):
             self.map.updateMap(Point(estimated_x,estimated_y), 'beacon', ground_readings)
         
         self.map.updateMap(Point(estimated_x, estimated_y), 'mapped')
+        self.map.printMap()
+
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -333,32 +335,31 @@ class MyRob(CRobLinkAngs):
 
             pid_value = abs(self.pid_controller.compute(error,dt))
 
-            if distance_to_goal > 0.1:
-                if error > 0.2:
-                    speed_left = velocity
-                    speed_right = max(0, velocity - pid_value)
-                elif error < -0.2:
-                    speed_left = max(0, velocity - pid_value)
-                    speed_right = velocity
-                else:
+            if distance_to_goal > 0.2:
+                # if error > 0.1:
+                #     speed_left = velocity
+                #     speed_right = max(0, velocity - pid_value)
+                # elif error < -0.1:
+                #     speed_left = max(0, velocity - pid_value)
+                #     speed_right = velocity
+                # else:
                     speed_left = velocity
                     speed_right = velocity
                 
-                return False, speed_left, speed_right
+                    return False, speed_left, speed_right
             
-            elif distance_to_goal < -0.1:
-
-                if error > 0.2:
-                    speed_left = -velocity
-                    speed_right = -max(0, velocity - pid_value)
-                elif error < -0.2:
-                    speed_left = -max(0, velocity - pid_value)
-                    speed_right = -velocity
-                else:
+            elif distance_to_goal < -0.2:
+                # if error > 0.1:
+                #     speed_left = -velocity
+                #     speed_right = -max(0, velocity - pid_value)
+                # elif error < -0.1:
+                #     speed_left = -max(0, velocity - pid_value)
+                #     speed_right = -velocity
+                # else:
                     speed_left = -velocity
                     speed_right = -velocity
                 
-                return False, speed_left, speed_right
+                    return False, speed_left, speed_right
             
             else:
                 return True, 0, 0
@@ -371,13 +372,27 @@ class MyRob(CRobLinkAngs):
 
             distance_to_goal = goal_orientation - orientation
             
-            if distance_to_goal > 7:
+            if distance_to_goal >= 7:
                 return False, -velocity, velocity
-            elif distance_to_goal < - 7:
+            elif distance_to_goal <= - 7:
                 return False, velocity, -velocity
             else:
                 return True, 0, 0
         
+        elif (order == "adjust"):
+            if ((abs(orientation) < 7) | (abs(orientation-90) < 7)):
+                #self.map_flag = True
+                return True, 0, 0
+            else:
+                goal = min((0, 9), key=lambda x:abs(x-(round(abs(orientation)/10))))
+                print(goal)
+                if (orientation > (goal * 10)):
+                    speed_left = velocity / 2
+                    speed_right = -velocity / 2
+                elif (orientation < (goal * 10)):
+                    speed_left = -velocity / 2
+                    speed_right = velocity / 2
+                return False, speed_left, speed_right
         else:
             return True, 0, 0
 
@@ -399,8 +414,8 @@ class MyRob(CRobLinkAngs):
         orientation = self.measures.compass
         kf.update(orientation)
         
-        #filtered_orientation = kf.get_state()
-        filtered_orientation = orientation
+        filtered_orientation = kf.get_state()
+        # filtered_orientation = orientation
 
         sensor_filter.add_value('center', self.measures.irSensor[front_id])
         sensor_filter.add_value('left', self.measures.irSensor[left_id])
@@ -462,6 +477,9 @@ class MyRob(CRobLinkAngs):
 
             dx = self.path[0].point.x - self.pos_estimate.x
             dy = self.path[0].point.y - self.pos_estimate.y
+
+            print('dx: ' + str(dx) + ' dy: ' + str(dy))
+
         else:
             self.map_flag = True        
 
@@ -469,9 +487,9 @@ class MyRob(CRobLinkAngs):
         # Wander Logic
         # -------------------
         
-        if self.is_idle & (len(self.path) != 0):
+        if (len(self.path) != 0):
             if ((abs(dx) > 0.2) & (abs(dy) < 0.2)):
-                if abs(filtered_orientation) < 10:
+                if abs(filtered_orientation) < 7:
                     if dx > 0:
                         self.order = "forward"                
                     elif dx < 0:
@@ -479,34 +497,36 @@ class MyRob(CRobLinkAngs):
                 else:
                     self.order = "turn right"            
             elif ((abs(dx) < 0.2) & (abs(dy) > 0.2)):
-                if abs(filtered_orientation - 90) < 10:
+                if abs(filtered_orientation - 90) < 7:
                     if dy > 0:
                         self.order = "forward"                
                     elif dy < 0:
                         self.order = "backward"
                 else:
                     self.order = "turn left"
-            else:
-                self.order = "stop"
+            elif ((abs(dx) < 0.2) & (abs(dy) < 0.2)):
+                self.order = "adjust"
                 del self.path[0]
+            else:
+                if (min(abs(dx), abs(dy)) == abs(dx)):
+                    if abs(filtered_orientation - 90) < 7:
+                        if dy > 0:
+                            self.order = "forward"                
+                        elif dy < 0:
+                            self.order = "backward"
+                    else:
+                        self.order = "turn left"
+                else:
+                    if abs(filtered_orientation) < 7:
+                        if dx > 0:
+                            self.order = "forward"                
+                        elif dx < 0:
+                            self.order = "backward"
+                    else:
+                        self.order = "turn right"
 
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
 
-        if not self.path:
-            if ((abs(filtered_orientation) < 7) | (abs(filtered_orientation-90) < 7)):
-                speed_left = 0
-                speed_right = 0
-                self.is_idle = True
-                self.map_flag = True
-            else:
-                goal = min((0, 9), key=lambda x:abs(x-(round(abs(filtered_orientation)/10))))
-                if (filtered_orientation > (goal * 10)):
-                    speed_left = base_velocity / 2
-                    speed_right = -base_velocity / 2
-                elif (filtered_orientation < (goal * 10)):
-                    speed_left = -base_velocity / 2
-                    speed_right = base_velocity / 2
-        
         # -------------------
         # Actuation
         # -------------------
@@ -524,8 +544,10 @@ class MyRob(CRobLinkAngs):
         # Prediction and Estimation
         # -------------------
 
-        self.pos_estimate.update(self.previous_pos.x + lin_speed * cos(radians(self.previous_orientation)),'x')
-        self.pos_estimate.update(self.previous_pos.y + lin_speed * sin(radians(self.previous_orientation)),'y')
+        # self.pos_estimate.update(self.previous_pos.x + lin_speed * cos(radians(self.previous_orientation)),'x')
+        # self.pos_estimate.update(self.previous_pos.y + lin_speed * sin(radians(self.previous_orientation)),'y')
+        self.pos_estimate.update(self.measures.x-843.1, 'x')
+        self.pos_estimate.update(self.measures.y-405.4, 'y')
 
         orientation_estimation = degrees(radians(self.previous_orientation_estimation) + rot_speed) # degrees
 
@@ -534,17 +556,16 @@ class MyRob(CRobLinkAngs):
         # -------------------
         # Visualization
         # -------------------
-        self.map.printMap()
-        print(self.map.unexplored_cells)
-        # print('dx: ' + str(dx) + ' dy: ' + str(dy))
-        # print(self.order)
+        print(self.path)
+        #print(self.map.unexplored_cells)
+        print(self.order)
         # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
-        #print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
-        #print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
+        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
+        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
         # print(self.measures.beacon)
-        #print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
-        #print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
-        # print(current_time)
+        print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
+        print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
+        # print(str((self.path[0].point.x, self.path[0].point.y)))
         # The values predicted by the filter and movement model, only take effect in the compass next cycle.
         # This means, prediction and estimation should be done after actuation
 
