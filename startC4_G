@@ -12,7 +12,7 @@ sleep 2
 
 sleep 3
 
-(cd pClient; ./s4.sh)
+(cd pClient; python3 mainC4_G.py)
 
 killall simulator
 killall Viewer
