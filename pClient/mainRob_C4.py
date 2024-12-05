@@ -108,6 +108,9 @@ class Point:
 
     def __hash__(self):
         return hash((self.x, self.y))
+    
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 class Node:
   def __init__(self, point, f, g, h, parent = None):
@@ -159,32 +162,58 @@ class OwnMap:
             self.discovered_map[self.offset.y - beacon[0].y][self.offset.x + beacon[0].x] = str(beacon[1])
         
     def printMap(self):
+        # ----- Visual -----
         print('-----//-----')
         for n in range(len(self.discovered_map)):
             print(self.discovered_map[n])
         print('-----//-----')
 
-class MyRob(CRobLinkAngs):
-    def __init__(self, rob_name, rob_id, angles, host):
-        CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(0.15, 0.0, 0.0)
-        self.last_time = 0
-        self.previous_out_left = 0
-        self.previous_out_right = 0
-        self.previous_orientation = 0
-        self.previous_orientation_estimation = 0
-        self.map_flag = True
-        self.plan_flag = False
-        self.objective = Point()
-        self.pos_estimate = Point()
-        self.previous_pos = Point()
-        self.is_idle = True
-        self.order = ""
-        self.path = []
-        self.map = OwnMap()
+        # ----- Write map in File -----
+        with open("map_created.map", 'w') as file:
+            # Write content to the file
+            for i in range(len(self.discovered_map)):
+                for ii in range(len(self.discovered_map[i])):    
+                    file.write(str(self.discovered_map[i][ii]))
+                file.write("\n")
 
+        # ----- Write path in File -----
+        start_beacon = self.beacons[0][0] #Point
+        partial_path = []
+        final_path = []
+        beacon_coords = [beacon[0] for beacon in self.beacons] #Array of Points
+        while beacon_coords:
+            beacon_coords = [beacon for beacon in beacon_coords if beacon != start_beacon] #Array of Points 
+            closest_beacon = self.find_next_location(beacon_coords, start_beacon) #Node
+            if closest_beacon:
+                start_beacon = closest_beacon.point #Point
+                while closest_beacon:
+                    partial_path.append(closest_beacon.point) #Array of Points
+                    closest_beacon = closest_beacon.parent #Node
+                partial_path = partial_path[::2] #Array of Points
+                partial_path.reverse()
+                final_path.append(partial_path) #Array of arrays of Points
+                partial_path = []
+        
+        closest_beacon = self.find_next_location([Point()], start_beacon) #Node
+        if closest_beacon:
+            while closest_beacon:
+                partial_path.append(closest_beacon.point) #Array of Points
+                closest_beacon = closest_beacon.parent #Node
+            partial_path = partial_path[::2] #Array of Points
+            partial_path.reverse()
+            final_path.append(partial_path) #Array of arrays of Points
+        
+        with open("path_created.path", 'w') as file:
+            for i in range(len(final_path)):
+                    if i > 0:
+                        del final_path[i][0]
+                    for ii in range(len(final_path[i])):    
+                        file.write(str(final_path[i][ii].x))
+                        file.write(" ")
+                        file.write(str(final_path[i][ii].y))
+                        file.write("\n")
 
-    def find_next_location(self, visit_locations, free_cells, current_position, current_orientation = None):
+    def find_next_location(self, visit_locations, current_position, current_orientation = None):
         
         deltas = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         
@@ -212,7 +241,7 @@ class MyRob(CRobLinkAngs):
                 new_x = x + dx
                 new_y = y + dy
                 new_g = 0
-                if Point(new_x, new_y) in free_cells:
+                if Point(new_x, new_y) in self.free_cells:
                     new_g = current_node.g + 1              
                     new_h = self.heuristic(Point(new_x, new_y), visit_locations)
                     new_node = Node(Point(new_x, new_y), new_g + new_h, new_g, new_h, current_node)
@@ -224,12 +253,31 @@ class MyRob(CRobLinkAngs):
         return None
 
     def heuristic(self, current_pos, targets):
-    
+
         min_distance = float('inf')
         for target in targets:
             distance = abs(current_pos.x - target.x) + abs(current_pos.y - target.y)
             min_distance = min(min_distance, distance)
         return min_distance
+
+class MyRob(CRobLinkAngs):
+    def __init__(self, rob_name, rob_id, angles, host):
+        CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
+        self.pid_controller = PIDController(0.15, 0.0, 0.0)
+        self.last_time = 0
+        self.previous_out_left = 0
+        self.previous_out_right = 0
+        self.previous_orientation = 0
+        self.previous_orientation_estimation = 0
+        self.map_flag = True
+        self.plan_flag = False
+        self.objective = Point()
+        self.pos_estimate = Point()
+        self.previous_pos = Point()
+        self.is_idle = True
+        self.order = ""
+        self.path = []
+        self.map = OwnMap()
 
     def map_location(self, direction, sensor_readings, ground_readings):
         if int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 0:
@@ -267,8 +315,6 @@ class MyRob(CRobLinkAngs):
             self.map.updateMap(Point(estimated_x,estimated_y), 'beacon', ground_readings)
         
         self.map.updateMap(Point(estimated_x, estimated_y), 'mapped')
-        self.map.printMap()
-
 
     # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
     # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
@@ -464,7 +510,7 @@ class MyRob(CRobLinkAngs):
         # -------------------
         if self.plan_flag:
             if self.map.unexplored_cells:
-                next_location = self.find_next_location(self.map.unexplored_cells, self.map.free_cells, self.pos_estimate, filtered_orientation)
+                next_location = self.map.find_next_location(self.map.unexplored_cells , self.pos_estimate, filtered_orientation)
                 if next_location:
                     while next_location:
                         self.path.append(next_location)
@@ -473,6 +519,7 @@ class MyRob(CRobLinkAngs):
                 self.plan_flag = False
             else:
                 print("Colisions:" + str(self.measures.collisions))
+                self.map.printMap()
                 self.finish()
 
         if self.path:
