@@ -336,30 +336,30 @@ class MyRob(CRobLinkAngs):
             pid_value = abs(self.pid_controller.compute(error,dt))
 
             if distance_to_goal > 0.2:
-                # if error > 0.1:
-                #     speed_left = velocity
-                #     speed_right = max(0, velocity - pid_value)
-                # elif error < -0.1:
-                #     speed_left = max(0, velocity - pid_value)
-                #     speed_right = velocity
-                # else:
+                if error > 0.1:
+                    speed_left = velocity
+                    speed_right = max(0, velocity - pid_value)
+                elif error < -0.1:
+                    speed_left = max(0, velocity - pid_value)
+                    speed_right = velocity
+                else:
                     speed_left = velocity
                     speed_right = velocity
                 
-                    return False, speed_left, speed_right
+                return False, speed_left, speed_right
             
             elif distance_to_goal < -0.2:
-                # if error > 0.1:
-                #     speed_left = -velocity
-                #     speed_right = -max(0, velocity - pid_value)
-                # elif error < -0.1:
-                #     speed_left = -max(0, velocity - pid_value)
-                #     speed_right = -velocity
-                # else:
+                if error > 0.1:
+                    speed_left = -velocity
+                    speed_right = -max(0, velocity - pid_value)
+                elif error < -0.1:
+                    speed_left = -max(0, velocity - pid_value)
+                    speed_right = -velocity
+                else:
                     speed_left = -velocity
                     speed_right = -velocity
                 
-                    return False, speed_left, speed_right
+                return False, speed_left, speed_right
             
             else:
                 return True, 0, 0
@@ -380,8 +380,11 @@ class MyRob(CRobLinkAngs):
                 return True, 0, 0
         
         elif (order == "adjust"):
-            if ((abs(orientation) < 7) | (abs(orientation-90) < 7)):
-                #self.map_flag = True
+            if ((abs(orientation) < 5) | (abs(orientation-90) < 5)):
+                self.order = "stop"  
+                if (len(self.path) != 0):
+                    del self.path[0]
+              
                 return True, 0, 0
             else:
                 goal = min((0, 9), key=lambda x:abs(x-(round(abs(orientation)/10))))
@@ -469,6 +472,7 @@ class MyRob(CRobLinkAngs):
                     self.path.reverse()
                 self.plan_flag = False
             else:
+                print("Colisions:" + str(self.measures.collisions))
                 self.finish()
 
         if self.path:
@@ -487,8 +491,8 @@ class MyRob(CRobLinkAngs):
         # Wander Logic
         # -------------------
         
-        if (len(self.path) != 0):
-            if ((abs(dx) > 0.2) & (abs(dy) < 0.2)):
+        if self.is_idle & (len(self.path) != 0):
+            if ((abs(dx) > 0.3) & (abs(dy) < 0.3)):
                 if abs(filtered_orientation) < 7:
                     if dx > 0:
                         self.order = "forward"                
@@ -496,7 +500,7 @@ class MyRob(CRobLinkAngs):
                         self.order = "backward"
                 else:
                     self.order = "turn right"            
-            elif ((abs(dx) < 0.2) & (abs(dy) > 0.2)):
+            elif ((abs(dx) < 0.3) & (abs(dy) > 0.3)):
                 if abs(filtered_orientation - 90) < 7:
                     if dy > 0:
                         self.order = "forward"                
@@ -504,9 +508,8 @@ class MyRob(CRobLinkAngs):
                         self.order = "backward"
                 else:
                     self.order = "turn left"
-            elif ((abs(dx) < 0.2) & (abs(dy) < 0.2)):
+            elif ((abs(dx) < 0.3) & (abs(dy) < 0.3)):
                 self.order = "adjust"
-                del self.path[0]
             else:
                 if (min(abs(dx), abs(dy)) == abs(dx)):
                     if abs(filtered_orientation - 90) < 7:
