@@ -163,10 +163,10 @@ class OwnMap:
         
     def printMap(self):
         # ----- Visual -----
-        print('-----//-----')
-        for n in range(len(self.discovered_map)):
-            print(self.discovered_map[n])
-        print('-----//-----')
+        # print('-----//-----')
+        # for n in range(len(self.discovered_map)):
+        #     print(self.discovered_map[n])
+        # print('-----//-----')
 
         # ----- Write map in File -----
         with open("map_created.map", 'w') as file:
@@ -194,6 +194,7 @@ class OwnMap:
                 final_path.append(partial_path) #Array of arrays of Points
                 partial_path = []
         
+        #Add the 0 beacon as the ending point
         closest_beacon = self.find_next_location([Point()], start_beacon) #Node
         if closest_beacon:
             while closest_beacon:
@@ -271,6 +272,7 @@ class MyRob(CRobLinkAngs):
         self.previous_orientation_estimation = 0
         self.map_flag = True
         self.plan_flag = False
+        self.finish_flag = False
         self.objective = Point()
         self.pos_estimate = Point()
         self.previous_pos = Point()
@@ -434,7 +436,6 @@ class MyRob(CRobLinkAngs):
                 return True, 0, 0
             else:
                 goal = min((0, 9), key=lambda x:abs(x-(round(abs(orientation)/10))))
-                print(goal)
                 if (orientation > (goal * 10)):
                     speed_left = velocity / 2
                     speed_right = -velocity / 2
@@ -511,16 +512,17 @@ class MyRob(CRobLinkAngs):
         if self.plan_flag:
             if self.map.unexplored_cells:
                 next_location = self.map.find_next_location(self.map.unexplored_cells , self.pos_estimate, filtered_orientation)
-                if next_location:
-                    while next_location:
-                        self.path.append(next_location)
-                        next_location = next_location.parent
-                    self.path.reverse()
-                self.plan_flag = False
-            else:
-                print("Colisions:" + str(self.measures.collisions))
+            elif ((len(self.map.unexplored_cells) == 0) & (self.finish_flag != True)):
                 self.map.printMap()
-                self.finish()
+                next_location = self.map.find_next_location([Point()], self.pos_estimate, filtered_orientation)
+                self.finish_flag = True
+
+            if next_location:
+                while next_location:
+                    self.path.append(next_location)
+                    next_location = next_location.parent
+                self.path.reverse()
+                self.plan_flag = False
 
         if self.path:
             self.objective.update(self.path[0].point.x, 'x')
@@ -529,10 +531,15 @@ class MyRob(CRobLinkAngs):
             dx = self.path[0].point.x - self.pos_estimate.x
             dy = self.path[0].point.y - self.pos_estimate.y
 
-            print('dx: ' + str(dx) + ' dy: ' + str(dy))
+            # print('dx: ' + str(dx) + ' dy: ' + str(dy))
 
+        elif not self.finish_flag:
+            self.map_flag = True
+        
         else:
-            self.map_flag = True        
+            self.map.unexplored_cells = []
+            print("Colisions:" + str(self.measures.collisions))
+            self.finish()        
 
         # -------------------
         # Wander Logic
@@ -608,13 +615,13 @@ class MyRob(CRobLinkAngs):
         # -------------------
         print(self.path)
         #print(self.map.unexplored_cells)
-        print(self.order)
+        # print(self.order)
         # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
-        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
-        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
+        # print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
+        # print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
         # print(self.measures.beacon)
-        print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
-        print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
+        # print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
+        # print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
         # print(str((self.path[0].point.x, self.path[0].point.y)))
         # The values predicted by the filter and movement model, only take effect in the compass next cycle.
         # This means, prediction and estimation should be done after actuation

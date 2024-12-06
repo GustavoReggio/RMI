@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ARGS="--param ../Labs/rmi-2425/C4-config.xml"
-ARGS+=" --lab ../Labs/rmi-2425/C4-lab.xml"
+ARGS+=" --lab ../Labs/rmi-2425/C4-lab_open.xml"
 ARGS+=" --grid ../Labs/rmi-2425/C4-grid.xml"
 ARGS+=" --scoring 3"
 (cd simulator; ./simulator $ARGS) &
@@ -18,7 +18,6 @@ sleep 3
 (cd simulator; gawk -f mapping_score.awk planning.out planning.out) &
 
 (cd simulator; gawk -f planning_score.awk planning.out ../pClient/path_created.path) &
-(cd simulator; gawk -f planning_score.awk planning.out planning.out) &
 
 killall simulator
 killall Viewer
