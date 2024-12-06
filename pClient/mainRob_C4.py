@@ -263,7 +263,7 @@ class OwnMap:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(0.15, 0.0, 0.0)
+        self.pid_controller = PIDController(0.25, 0.0, 0.0)
         self.last_time = 0
         self.previous_out_left = 0
         self.previous_out_right = 0
@@ -292,10 +292,8 @@ class MyRob(CRobLinkAngs):
             obj_pos_y = sensor_readings[0]
             obj_neg_y = sensor_readings[1]
 
-        measures = [ceil(obj_pos_x), ceil(obj_neg_x), ceil(obj_pos_y), ceil(obj_neg_y)]
+        measures = [obj_pos_x, obj_neg_x, obj_pos_y, obj_neg_y]
         deltas = [Point(1,0), Point(-1,0), Point(0,1), Point(0,-1)]
-
-        # self.update_estimation([obj_pos_x, obj_neg_x, obj_pos_y, obj_neg_y], deltas)
 
         estimated_x = int(round(self.pos_estimate.x))
         estimated_y = int(round(self.pos_estimate.y))
@@ -303,11 +301,13 @@ class MyRob(CRobLinkAngs):
         n = 0
         for distance in measures:
             delta = deltas[n]
-            if distance < 2:
+            if ceil(distance) < 2:
                 if n < 2:
                     self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'v_wall')
+                    # self.update_estimation(distance, delta)
                 else:
                     self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'h_wall')
+                    # self.update_estimation(distance, delta)
             else:
                 self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'free')
                 self.map.updateMap(Point(estimated_x + (2*delta.x), estimated_y + (2*delta.y)), 'free')
@@ -319,15 +319,50 @@ class MyRob(CRobLinkAngs):
         
         self.map.updateMap(Point(estimated_x, estimated_y), 'mapped')
 
-    def update_estimation(self, measures, directions):
-        a = 0
-        for direction in directions:
-            if measures[a] <= 1.125:
-                if a < 2:
-                    self.pos_estimate.update(round(self.pos_estimate.x) + (measures[a] * (-direction.x) + 0.5) - 0.9, 'x')
-                if a > 2:
-                    self.pos_estimate.update(round(self.pos_estimate.y) + (measures[a] * (-direction.y) + 0.5) - 0.9, 'y')
-            a += 1
+    def update_estimation(self, measures, direction):
+        
+        if int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 0:
+            obj_pos_x = measures[0]
+            obj_neg_x = measures[1]
+            obj_pos_y = measures[2]
+            obj_neg_y = measures[3]
+        elif int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 9:
+            obj_pos_x = measures[3]
+            obj_neg_x = measures[2]
+            obj_pos_y = measures[0]
+            obj_neg_y = measures[1]
+
+        measures = [obj_pos_x, obj_neg_x, obj_pos_y, obj_neg_y]
+        directions = [Point(1,0), Point(-1,0), Point(0,1), Point(0,-1)]
+
+        n = 0
+        for measure in measures:
+            direction = directions[n]
+            if measure < 2:
+                if n < 2:
+                    distance_measured = (measure + 0.5) * direction.x
+                    wall_pos = self.pos_estimate.x + distance_measured + 0.1
+                    wall_pos_aprox = [ceil(wall_pos), floor(wall_pos)]
+
+                    if (wall_pos_aprox[1] % 2) == 0:
+                        position_corrected = wall_pos_aprox[0] - distance_measured
+                    else:
+                        position_corrected = wall_pos_aprox[1] - distance_measured
+                        
+                    self.pos_estimate.update(position_corrected, 'x')
+                else:
+                    distance_measured = (measure + 0.5) * direction.y
+                    wall_pos = self.pos_estimate.y + distance_measured + 0.1
+                    wall_pos_aprox = [ceil(wall_pos), floor(wall_pos)]
+
+                    if (wall_pos_aprox[1] % 2) == 0:
+                        position_corrected = wall_pos_aprox[0] - distance_measured
+                    else:
+                        position_corrected = wall_pos_aprox[1] - distance_measured
+                        
+                    self.pos_estimate.update(position_corrected, 'y')
+            n += 1
+
 
     def setMap(self, labMap):
         self.labMap = labMap
@@ -555,42 +590,26 @@ class MyRob(CRobLinkAngs):
         # -------------------
         
         if self.is_idle & (len(self.path) != 0):
-            if ((abs(dx) > 0.3) & (abs(dy) < 0.3)):
-                if abs(filtered_orientation) < 7:
+            if ((max(abs(dx), abs(dy)) ==  abs(dx)) & (abs(dx) > 0.3)):
+                if abs(filtered_orientation) < 5:
                     if dx > 0:
                         self.order = "forward"                
                     elif dx < 0:
                         self.order = "backward"
                 else:
                     self.order = "turn right"            
-            elif ((abs(dx) < 0.3) & (abs(dy) > 0.3)):
-                if abs(filtered_orientation - 90) < 7:
+            elif ((max(abs(dx), abs(dy)) ==  abs(dy)) & (abs(dy) > 0.3)):
+                if abs(filtered_orientation - 90) < 5:
                     if dy > 0:
                         self.order = "forward"                
                     elif dy < 0:
                         self.order = "backward"
                 else:
                     self.order = "turn left"
-            elif ((abs(dx) < 0.3) & (abs(dy) < 0.3)):
-                self.order = "adjust"
             else:
-                if (min(abs(dx), abs(dy)) == abs(dx)):
-                    if abs(filtered_orientation - 90) < 7:
-                        if dy > 0:
-                            self.order = "forward"                
-                        elif dy < 0:
-                            self.order = "backward"
-                    else:
-                        self.order = "turn left"
-                else:
-                    if abs(filtered_orientation) < 7:
-                        if dx > 0:
-                            self.order = "forward"                
-                        elif dx < 0:
-                            self.order = "backward"
-                    else:
-                        self.order = "turn right"
-
+                self.order = "adjust"
+                self.update_estimation(sensor_readings, filtered_orientation)
+        
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
 
         # -------------------
@@ -610,10 +629,10 @@ class MyRob(CRobLinkAngs):
         # Prediction and Estimation
         # -------------------
 
-        # self.pos_estimate.update(self.previous_pos.x + lin_speed * cos(radians(self.previous_orientation)),'x')
-        # self.pos_estimate.update(self.previous_pos.y + lin_speed * sin(radians(self.previous_orientation)),'y')
-        self.pos_estimate.update(self.measures.x-843.1, 'x')
-        self.pos_estimate.update(self.measures.y-405.4, 'y')
+        self.pos_estimate.update(self.previous_pos.x + lin_speed * cos(radians(self.previous_orientation)),'x')
+        self.pos_estimate.update(self.previous_pos.y + lin_speed * sin(radians(self.previous_orientation)),'y')
+        # self.pos_estimate.update(self.measures.x-843.1, 'x')
+        # self.pos_estimate.update(self.measures.y-405.4, 'y')
 
         orientation_estimation = degrees(radians(self.previous_orientation_estimation) + rot_speed) # degrees
 
@@ -622,8 +641,8 @@ class MyRob(CRobLinkAngs):
         # -------------------
         # Visualization
         # -------------------
-        print(self.path)
-        #print(self.map.unexplored_cells)
+        # print(self.path)
+        print(self.map.unexplored_cells)
         # print(self.order)
         # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
         print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
