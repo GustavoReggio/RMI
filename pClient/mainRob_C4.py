@@ -167,7 +167,6 @@ class OwnMap:
         # for n in range(len(self.discovered_map)):
         #     print(self.discovered_map[n])
         # print('-----//-----')
-
         # ----- Write map in File -----
         with open("map_created.map", 'w') as file:
             # Write content to the file
@@ -283,18 +282,20 @@ class MyRob(CRobLinkAngs):
 
     def map_location(self, direction, sensor_readings, ground_readings):
         if int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 0:
-            obj_pos_x = ceil(sensor_readings[0])
-            obj_neg_x = ceil(sensor_readings[1])
-            obj_pos_y = ceil(sensor_readings[2])
-            obj_neg_y = ceil(sensor_readings[3])
+            obj_pos_x = sensor_readings[0]
+            obj_neg_x = sensor_readings[1]
+            obj_pos_y = sensor_readings[2]
+            obj_neg_y = sensor_readings[3]
         elif int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 9:
-            obj_pos_x = ceil(sensor_readings[3])
-            obj_neg_x = ceil(sensor_readings[2])
-            obj_pos_y = ceil(sensor_readings[0])
-            obj_neg_y = ceil(sensor_readings[1])
+            obj_pos_x = sensor_readings[3]
+            obj_neg_x = sensor_readings[2]
+            obj_pos_y = sensor_readings[0]
+            obj_neg_y = sensor_readings[1]
 
-        measures = [obj_pos_x, obj_neg_x, obj_pos_y, obj_neg_y]
+        measures = [ceil(obj_pos_x), ceil(obj_neg_x), ceil(obj_pos_y), ceil(obj_neg_y)]
         deltas = [Point(1,0), Point(-1,0), Point(0,1), Point(0,-1)]
+
+        # self.update_estimation([obj_pos_x, obj_neg_x, obj_pos_y, obj_neg_y], deltas)
 
         estimated_x = int(round(self.pos_estimate.x))
         estimated_y = int(round(self.pos_estimate.y))
@@ -318,8 +319,16 @@ class MyRob(CRobLinkAngs):
         
         self.map.updateMap(Point(estimated_x, estimated_y), 'mapped')
 
-    # In this map the center of cell (i,j), (i in 0..6, j in 0..13) is mapped to labMap[i*2][j*2].
-    # to know if there is a wall on top of cell(i,j) (i in 0..5), check if the value of labMap[i*2+1][j*2] is space or not
+    def update_estimation(self, measures, directions):
+        a = 0
+        for direction in directions:
+            if measures[a] <= 1.125:
+                if a < 2:
+                    self.pos_estimate.update(round(self.pos_estimate.x) + (measures[a] * (-direction.x) + 0.5) - 0.9, 'x')
+                if a > 2:
+                    self.pos_estimate.update(round(self.pos_estimate.y) + (measures[a] * (-direction.y) + 0.5) - 0.9, 'y')
+            a += 1
+
     def setMap(self, labMap):
         self.labMap = labMap
 
@@ -617,8 +626,8 @@ class MyRob(CRobLinkAngs):
         #print(self.map.unexplored_cells)
         # print(self.order)
         # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
-        # print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
-        # print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
+        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
+        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
         # print(self.measures.beacon)
         # print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
         # print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
