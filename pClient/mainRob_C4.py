@@ -18,7 +18,10 @@ class PIDController:
 
     def compute(self, error, dt):
         self.integral += error * dt
-        derivative = (error - self.previous_error) / dt
+        try:
+            derivative = (error - self.previous_error) / dt
+        except:
+            derivative = 0
         self.previous_error = error
         output = self.kp * error + self.ki * self.integral + self.kd * derivative
         return output
@@ -132,7 +135,7 @@ class OwnMap:
         self.horizontal_walls = []
         self.beacons = [(Point(), 0)]
     
-    def updateMap(self, point, state, beacon = None):
+    def updateMap(self, point, state, beacon = None, line_of_sight = None):
         if state == 'free':
             if point not in self.free_cells:
                 self.free_cells.append(point)
@@ -152,6 +155,19 @@ class OwnMap:
                 self.explored_cells.append(point)
                 self.unexplored_cells = [i for i in self.unexplored_cells if i not in self.explored_cells]
 
+            beacon_status = [status for status, _ in line_of_sight]
+            beacon_status.pop(0)
+            if not any(beacon_status):
+                for unexplored_cell in self.unexplored_cells[:]:  # Iterate over a copy of the list
+                    neighbors = [
+                        Point(unexplored_cell.x + dx, unexplored_cell.y + dy)
+                        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]
+                    ]
+                    if all(neighbor in self.vertical_walls or neighbor in self.horizontal_walls or neighbor in self.free_cells for neighbor in neighbors):
+                        self.unexplored_cells.remove(unexplored_cell)
+                        if unexplored_cell not in self.explored_cells:
+                            self.explored_cells.append(unexplored_cell)
+
         for point in self.free_cells:
             self.discovered_map[self.offset.y - point.y][self.offset.x + point.x] = 'X'
         for point in self.vertical_walls:
@@ -163,10 +179,10 @@ class OwnMap:
         
     def printMap(self):
         # ----- Visual -----
-        # print('-----//-----')
-        # for n in range(len(self.discovered_map)):
-        #     print(self.discovered_map[n])
-        # print('-----//-----')
+        print('-----//-----')
+        for n in range(len(self.discovered_map)):
+            print(self.discovered_map[n])
+        print('-----//-----')
         # ----- Write map in File -----
         with open("map_created.map", 'w') as file:
             # Write content to the file
@@ -263,7 +279,7 @@ class OwnMap:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(0.25, 0.0, 0.0)
+        self.pid_controller = PIDController(0.35, 0.0, 0.0)
         self.last_time = 0
         self.previous_out_left = 0
         self.previous_out_right = 0
@@ -281,6 +297,7 @@ class MyRob(CRobLinkAngs):
         self.map = OwnMap()
 
     def map_location(self, direction, sensor_readings, ground_readings):
+
         if int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 0:
             obj_pos_x = sensor_readings[0]
             obj_neg_x = sensor_readings[1]
@@ -304,10 +321,8 @@ class MyRob(CRobLinkAngs):
             if ceil(distance) < 2:
                 if n < 2:
                     self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'v_wall')
-                    # self.update_estimation(distance, delta)
                 else:
                     self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'h_wall')
-                    # self.update_estimation(distance, delta)
             else:
                 self.map.updateMap(Point(estimated_x + delta.x, estimated_y + delta.y), 'free')
                 self.map.updateMap(Point(estimated_x + (2*delta.x), estimated_y + (2*delta.y)), 'free')
@@ -317,7 +332,7 @@ class MyRob(CRobLinkAngs):
         if ground_readings > -1:
             self.map.updateMap(Point(estimated_x,estimated_y), 'beacon', ground_readings)
         
-        self.map.updateMap(Point(estimated_x, estimated_y), 'mapped')
+        self.map.updateMap(Point(estimated_x, estimated_y), 'mapped', line_of_sight= self.measures.beacon)
 
     def update_estimation(self, measures, direction):
         
@@ -341,7 +356,7 @@ class MyRob(CRobLinkAngs):
             if measure < 2:
                 if n < 2:
                     distance_measured = (measure + 0.5) * direction.x
-                    wall_pos = self.pos_estimate.x + distance_measured + 0.1
+                    wall_pos = self.pos_estimate.x + distance_measured + (0.1 * direction.x)
                     wall_pos_aprox = [ceil(wall_pos), floor(wall_pos)]
 
                     if (wall_pos_aprox[1] % 2) == 0:
@@ -352,7 +367,7 @@ class MyRob(CRobLinkAngs):
                     self.pos_estimate.update(position_corrected, 'x')
                 else:
                     distance_measured = (measure + 0.5) * direction.y
-                    wall_pos = self.pos_estimate.y + distance_measured + 0.1
+                    wall_pos = self.pos_estimate.y + distance_measured + (0.1 * direction.x)
                     wall_pos_aprox = [ceil(wall_pos), floor(wall_pos)]
 
                     if (wall_pos_aprox[1] % 2) == 0:
@@ -464,9 +479,9 @@ class MyRob(CRobLinkAngs):
 
             distance_to_goal = goal_orientation - orientation
             
-            if distance_to_goal >= 7:
+            if distance_to_goal >= 10:
                 return False, -velocity, velocity
-            elif distance_to_goal <= - 7:
+            elif distance_to_goal <= - 10:
                 return False, velocity, -velocity
             else:
                 return True, 0, 0
@@ -476,7 +491,7 @@ class MyRob(CRobLinkAngs):
                 self.order = "stop"  
                 if (len(self.path) != 0):
                     del self.path[0]
-              
+
                 return True, 0, 0
             else:
                 goal = min((0, 9), key=lambda x:abs(x-(round(abs(orientation)/10))))
@@ -496,7 +511,7 @@ class MyRob(CRobLinkAngs):
         left_id = 1
         right_id = 2
         back_id = 3
-        base_velocity = 0.15
+        base_velocity = 0.1
 
         # -------------------
         # Measurments
@@ -575,9 +590,9 @@ class MyRob(CRobLinkAngs):
             dx = self.path[0].point.x - self.pos_estimate.x
             dy = self.path[0].point.y - self.pos_estimate.y
 
-            # print('dx: ' + str(dx) + ' dy: ' + str(dy))
-
         elif not self.finish_flag:
+            print("------------------------------------------")
+            self.update_estimation(sensor_readings, filtered_orientation)
             self.map_flag = True
         
         else:
@@ -590,7 +605,7 @@ class MyRob(CRobLinkAngs):
         # -------------------
         
         if self.is_idle & (len(self.path) != 0):
-            if ((max(abs(dx), abs(dy)) ==  abs(dx)) & (abs(dx) > 0.3)):
+            if ((max(abs(dx), abs(dy)) ==  abs(dx)) & (abs(dx) > 0.2) & (abs(dy) < 0.2)):
                 if abs(filtered_orientation) < 5:
                     if dx > 0:
                         self.order = "forward"                
@@ -598,7 +613,7 @@ class MyRob(CRobLinkAngs):
                         self.order = "backward"
                 else:
                     self.order = "turn right"            
-            elif ((max(abs(dx), abs(dy)) ==  abs(dy)) & (abs(dy) > 0.3)):
+            elif ((max(abs(dx), abs(dy)) ==  abs(dy)) & (abs(dy) > 0.2) & (abs(dx) < 0.2)):
                 if abs(filtered_orientation - 90) < 5:
                     if dy > 0:
                         self.order = "forward"                
@@ -608,7 +623,7 @@ class MyRob(CRobLinkAngs):
                     self.order = "turn left"
             else:
                 self.order = "adjust"
-                self.update_estimation(sensor_readings, filtered_orientation)
+
         
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
 
@@ -641,13 +656,13 @@ class MyRob(CRobLinkAngs):
         # -------------------
         # Visualization
         # -------------------
-        # print(self.path)
-        print(self.map.unexplored_cells)
-        # print(self.order)
-        # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
         print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
         print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
-        # print(self.measures.beacon)
+        # print(self.path)
+        # print(self.map.unexplored_cells)
+        # print(self.order)
+        # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
+        print(self.measures.beacon)
         # print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
         # print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
         # print(str((self.path[0].point.x, self.path[0].point.y)))
