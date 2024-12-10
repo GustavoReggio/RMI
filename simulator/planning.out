@@ -10,20 +10,20 @@
                                                        
                          - - - - - - - - - - - - - -   
                         |XXXXXXXXXXXXXXXXXXXXXXXXXXX|  
-                         X - X X - X X X X - - X X X   
-                        |XX0XXXX|XXXXXXX|XXXXX|XXXXX|  
-                         X X - X X - - - - X - - X X   
-                        |XXXXX|XXXX1XXXX|XXX|XXXXXXX|  
-                         X - - - X - X - - - - X - -   
-                        |XXX|XXXXX|XXXXXXX|2XXXXXXXX|  
-                         X - - - X - X X - X - - - -   
-                        |XXXXXXXXXXX|XXXXXXX|XXXX3|X|  
-                         X X X X - - X - - X X - - X   
-                        |XXX|XXXXXXXXXXXXXXX|XXXXXXX|  
-                         - - - - X X - - - - - X X X   
+                         X - X X X X - - - X - X - -   
+                        |XX0|XXXXXXXXX|XXXXX|XXXXXXX|  
+                         X - - X X - - X - X - X X X   
+                        |XXXXXXX|XXXXXXX|XXXXXXXX3XX|  
+                         X X - - X - X X X - X - - X   
+                        |X|XXXX1XX|XXXXX|XXXXXXXXXXX|  
+                         - - X - - - X X - - X X - -   
+                            |XXXXXXXXXXXXXX2XX|XXXXX|  
+                             X - X X - X - - X X - X   
+                            |XXXXXXXXXXXXXXXXXXXXX|X|  
+                         - - X - X X - X - - X - - -   
                         |XXXXXXXXXXXXXXXXXXXXXXXXXXX|  
                          - - - - - - - - - - - - - -   
                                                        
                                                        
  0 1 2 3 0
-104.000000
+72.000000

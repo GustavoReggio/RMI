@@ -288,6 +288,7 @@ class MyRob(CRobLinkAngs):
         self.map_flag = True
         self.plan_flag = False
         self.finish_flag = False
+        self.update_flag = False
         self.objective = Point()
         self.pos_estimate = Point()
         self.previous_pos = Point()
@@ -355,8 +356,8 @@ class MyRob(CRobLinkAngs):
             direction = directions[n]
             if measure < 2:
                 if n < 2:
-                    distance_measured = (measure + 0.5) * direction.x
-                    wall_pos = self.pos_estimate.x + distance_measured + (0.1 * direction.x)
+                    distance_measured = (measure + 0.5 + 0.1) * direction.x
+                    wall_pos = self.pos_estimate.x + distance_measured
                     wall_pos_aprox = [ceil(wall_pos), floor(wall_pos)]
 
                     if (wall_pos_aprox[1] % 2) == 0:
@@ -487,10 +488,11 @@ class MyRob(CRobLinkAngs):
                 return True, 0, 0
         
         elif (order == "adjust"):
-            if ((abs(orientation) < 5) | (abs(orientation-90) < 5)):
+            if ((abs(orientation) < 7) | (abs(orientation-90) < 7)):
                 self.order = "stop"  
                 if (len(self.path) != 0):
                     del self.path[0]
+                    self.update_flag = True
 
                 return True, 0, 0
             else:
@@ -511,7 +513,7 @@ class MyRob(CRobLinkAngs):
         left_id = 1
         right_id = 2
         back_id = 3
-        base_velocity = 0.1
+        base_velocity = 0.10
 
         # -------------------
         # Measurments
@@ -556,6 +558,12 @@ class MyRob(CRobLinkAngs):
         sensor_readings = [front_distance, back_distance, left_distance, right_distance]
 
         ground_reading = self.measures.ground
+        
+        # if self.update_flag:
+        #     self.update_estimation(sensor_readings, filtered_orientation)
+        #     print("updated")
+        #     self.update_flag = False
+        
         # -------------------
         # Mapping
         # -------------------
@@ -591,8 +599,6 @@ class MyRob(CRobLinkAngs):
             dy = self.path[0].point.y - self.pos_estimate.y
 
         elif not self.finish_flag:
-            print("------------------------------------------")
-            self.update_estimation(sensor_readings, filtered_orientation)
             self.map_flag = True
         
         else:
@@ -605,7 +611,7 @@ class MyRob(CRobLinkAngs):
         # -------------------
         
         if self.is_idle & (len(self.path) != 0):
-            if ((max(abs(dx), abs(dy)) ==  abs(dx)) & (abs(dx) > 0.2) & (abs(dy) < 0.2)):
+            if ((max(abs(dx), abs(dy)) ==  abs(dx)) & (abs(dx) > 0.3) & (abs(dy) < 0.3)):
                 if abs(filtered_orientation) < 5:
                     if dx > 0:
                         self.order = "forward"                
@@ -613,7 +619,7 @@ class MyRob(CRobLinkAngs):
                         self.order = "backward"
                 else:
                     self.order = "turn right"            
-            elif ((max(abs(dx), abs(dy)) ==  abs(dy)) & (abs(dy) > 0.2) & (abs(dx) < 0.2)):
+            elif ((max(abs(dx), abs(dy)) ==  abs(dy)) & (abs(dy) > 0.3) & (abs(dx) < 0.3)):
                 if abs(filtered_orientation - 90) < 5:
                     if dy > 0:
                         self.order = "forward"                
@@ -623,7 +629,6 @@ class MyRob(CRobLinkAngs):
                     self.order = "turn left"
             else:
                 self.order = "adjust"
-
         
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
 
@@ -656,13 +661,13 @@ class MyRob(CRobLinkAngs):
         # -------------------
         # Visualization
         # -------------------
-        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
-        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
+        # print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
+        # print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
         # print(self.path)
         # print(self.map.unexplored_cells)
         # print(self.order)
         # print('SL: ' + str(speed_left) + ' SR: ' + str(speed_right))
-        print(self.measures.beacon)
+        # print(self.measures.beacon)
         # print('F: ' + str(round(front_distance, 1)) + ' B: ' + str(round(back_distance,1)) + ' L: ' + str(round(left_distance,1)) + ' R: ' + str(round(right_distance,1)))
         # print('Orientation: ' + str(self.measures.compass) + ' Orienataion_est: ' + str(round(self.previous_orientation_estimation)) + ' Orienataion_fil: ' + str(round(filtered_orientation)))
         # print(str((self.path[0].point.x, self.path[0].point.y)))
