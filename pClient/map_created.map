@@ -11,19 +11,17 @@
                          - - - - - - - - - - - - - -   
                         |XXXXXXXXXXXXXXXXXXXXXXXXXXX|  
                          X - X X X X - - - X - X - -   
-                        |XX0|XXXXXXXXX|XXXXX|XXXXXXX|  
+                        |XX0|XXXXXXXXX|X|XXX|XXXXXXX|  
                          X - - X X - - X - X - X X X   
                         |XXXXXXX|XXXXXXX|XXXXXXXX3XX|  
                          X X - - X - X X X - X - - X   
-                        |X|XXXX1XX|XXXXX|XXXXXXXXXXX|  
+                        |X|XXXX1XX|XXXXX|XXXXXXX|XXX|  
                          - - X - - - X X - - X X - -   
                             |XXXXXXXXXXXXXX2XX|XXXXX|  
                              X - X X - X - - X X - X   
                             |XXXXXXXXXXXXXXXXXXXXX|X|  
                          - - X - X X - X - - X - - -   
-                        |XXXXXXXXXXXXXXXXXXXXXXXXXXX|  
+                        |XXXXXXXXXXXXXXXXXXX|XXXXXXX|  
                          - - - - - - - - - - - - - -   
                                                        
                                                        
- 0 1 2 3 0
-72.000000
