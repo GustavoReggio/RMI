@@ -3,6 +3,7 @@ from croblink import *
 from math import *
 import xml.etree.ElementTree as ET
 from random import *
+import math
 
 CELLROWS=7
 CELLCOLS=14
@@ -150,6 +151,7 @@ class OwnMap:
         elif state == 'beacon':
             if (point, beacon) not in self.beacons:
                 self.beacons.append((point, beacon))
+                self.beacons.sort(key=lambda beacon: beacon[1])
         elif state == 'mapped':
             if point not in self.explored_cells:
                 self.explored_cells.append(point)
@@ -178,57 +180,90 @@ class OwnMap:
             self.discovered_map[self.offset.y - beacon[0].y][self.offset.x + beacon[0].x] = str(beacon[1])
         
     def printMap(self):
-        # ----- Visual -----
-        print('-----//-----')
-        for n in range(len(self.discovered_map)):
-            print(self.discovered_map[n])
-        print('-----//-----')
         # ----- Write map in File -----
         with open("map_created.map", 'w') as file:
-            # Write content to the file
-            for i in range(len(self.discovered_map)):
-                for ii in range(len(self.discovered_map[i])):    
-                    file.write(str(self.discovered_map[i][ii]))
-                file.write("\n")
+            for row in self.discovered_map:
+                file.write(''.join(map(str, row)) + '\n')
 
         # ----- Write path in File -----
-        start_beacon = self.beacons[0][0] #Point
-        partial_path = []
         final_path = []
         beacon_coords = [beacon[0] for beacon in self.beacons] #Array of Points
-        while beacon_coords:
-            beacon_coords = [beacon for beacon in beacon_coords if beacon != start_beacon] #Array of Points 
-            closest_beacon = self.find_next_location(beacon_coords, start_beacon) #Node
-            if closest_beacon:
-                start_beacon = closest_beacon.point #Point
-                while closest_beacon:
-                    partial_path.append(closest_beacon.point) #Array of Points
-                    closest_beacon = closest_beacon.parent #Node
-                partial_path = partial_path[::2] #Array of Points
-                partial_path.reverse()
-                final_path.append(partial_path) #Array of arrays of Points
-                partial_path = []
-        
-        #Add the 0 beacon as the ending point
-        closest_beacon = self.find_next_location([Point()], start_beacon) #Node
-        if closest_beacon:
-            while closest_beacon:
-                partial_path.append(closest_beacon.point) #Array of Points
-                closest_beacon = closest_beacon.parent #Node
-            partial_path = partial_path[::2] #Array of Points
-            partial_path.reverse()
-            final_path.append(partial_path) #Array of arrays of Points
+        order = self.tsp(beacon_coords)
+        for i in range(len(order) - 1):
+            partial_path = []
+            path = self.find_next_location([beacon_coords[order[i+1]]],beacon_coords[order[i]])
+            while path:
+                partial_path.append(path.point)
+                path = path.parent
+            final_path.append(partial_path[::-2])
         
         with open("path_created.path", 'w') as file:
-            for i in range(len(final_path)):
-                    if i > 0:
-                        del final_path[i][0]
-                    for ii in range(len(final_path[i])):    
-                        file.write(str(final_path[i][ii].x))
-                        file.write(" ")
-                        file.write(str(final_path[i][ii].y))
-                        file.write("\n")
+            for i, path in enumerate(final_path):
+                if i > 0:
+                    path = path[1:]  # Skip the first point in subsequent paths
+                file.writelines(str(p.x) + " " + str(p.y) + "\n" for p in path)
 
+    # Calculate Euclidean distance between two points
+    def distance(self, p1, p2):
+        distance = self.find_next_location([p2],p1)
+        f_value = distance.f
+        return f_value
+
+    # TSP using Dynamic Programming (Held-Karp Algorithm)
+    def tsp(self, points):
+        n = len(points)
+        # Create a distance matrix
+        dist = [[0] * n for _ in range(n)]
+        for i in range(n):
+            for j in range(n):
+                if i != j:
+                    dist[i][j] = self.distance(points[i], points[j])
+        
+        # DP table: dp[mask][i] = minimum distance to visit all nodes in 'mask' ending at node i
+        INF = float('inf')
+        dp = [[INF] * n for _ in range(1 << n)]
+        parent = [[-1] * n for _ in range(1 << n)]  # Parent table to track the path
+        
+        # Base case: Starting point, only one city visited (the first city)
+        dp[1][0] = 0  # Starting at point 0 with only point 0 visited
+
+        # Iterate over all possible masks (sets of visited points)
+        for mask in range(1, 1 << n):
+            for i in range(n):  # Current endpoint
+                if mask & (1 << i):  # i must be in the current mask
+                    # Try to extend the path by visiting another point j
+                    for j in range(n):
+                        if not (mask & (1 << j)):  # j not visited yet
+                            new_mask = mask | (1 << j)
+                            new_cost = dp[mask][i] + dist[i][j]
+                            if new_cost < dp[new_mask][j]:
+                                dp[new_mask][j] = new_cost
+                                parent[new_mask][j] = i  # Record the previous point
+
+        # Reconstruct the path
+        # The answer is the minimum distance to visit all points and return to the start
+        min_cost = INF
+        last_point = -1
+        for i in range(1, n):
+            cost = dp[(1 << n) - 1][i] + dist[i][0]
+            if cost < min_cost:
+                min_cost = cost
+                last_point = i
+        
+        # Reconstruct the order of points
+        path = []
+        mask = (1 << n) - 1  # All points visited
+        while last_point != -1:
+            path.append(last_point)
+            next_point = parent[mask][last_point]
+            mask = mask ^ (1 << last_point)  # Remove last_point from the mask
+            last_point = next_point
+        
+        path.reverse()  # Reverse the path to get the correct order
+        # Include the starting point (0) at the beginning and end
+        path.append(path[0])
+        return path
+    
     def find_next_location(self, visit_locations, current_position, current_orientation = None):
         
         deltas = [(1, 0), (-1, 0), (0, 1), (0, -1)]
@@ -279,7 +314,7 @@ class OwnMap:
 class MyRob(CRobLinkAngs):
     def __init__(self, rob_name, rob_id, angles, host):
         CRobLinkAngs.__init__(self, rob_name, rob_id, angles, host)
-        self.pid_controller = PIDController(0.35, 0.0, 0.0)
+        self.pid_controller = PIDController(0.15, 0.0, 0.0)
         self.last_time = 0
         self.previous_out_left = 0
         self.previous_out_right = 0
@@ -336,7 +371,6 @@ class MyRob(CRobLinkAngs):
         self.map.updateMap(Point(estimated_x, estimated_y), 'mapped', line_of_sight= self.measures.beacon)
 
     def update_estimation(self, measures, direction):
-        
         if int(min((0, 9), key=lambda x: abs(x - round(abs(direction) / 10)))) == 0:
             obj_pos_x = measures[0]
             obj_neg_x = measures[1]
@@ -351,33 +385,44 @@ class MyRob(CRobLinkAngs):
         measures = [obj_pos_x, obj_neg_x, obj_pos_y, obj_neg_y]
         directions = [Point(1,0), Point(-1,0), Point(0,1), Point(0,-1)]
 
+        position_corrected_x = [self.pos_estimate.x, 0, 0]
+        position_corrected_y = [self.pos_estimate.y, 0, 0]
         n = 0
         for measure in measures:
             direction = directions[n]
-            if measure < 2:
+            if measure < 1:
                 if n < 2:
                     distance_measured = (measure + 0.5 + 0.1) * direction.x
                     wall_pos = self.pos_estimate.x + distance_measured
                     wall_pos_aprox = [ceil(wall_pos), floor(wall_pos)]
 
                     if (wall_pos_aprox[1] % 2) == 0:
-                        position_corrected = wall_pos_aprox[0] - distance_measured
+                        position_corrected_x[n+1] = wall_pos_aprox[0] - distance_measured
                     else:
-                        position_corrected = wall_pos_aprox[1] - distance_measured
+                        position_corrected_x[n+1] = wall_pos_aprox[1] - distance_measured
                         
-                    self.pos_estimate.update(position_corrected, 'x')
                 else:
                     distance_measured = (measure + 0.5) * direction.y
                     wall_pos = self.pos_estimate.y + distance_measured + (0.1 * direction.x)
                     wall_pos_aprox = [ceil(wall_pos), floor(wall_pos)]
 
                     if (wall_pos_aprox[1] % 2) == 0:
-                        position_corrected = wall_pos_aprox[0] - distance_measured
+                        position_corrected_y[n-1] = wall_pos_aprox[0] - distance_measured
                     else:
-                        position_corrected = wall_pos_aprox[1] - distance_measured
+                        position_corrected_y[n-1] = wall_pos_aprox[1] - distance_measured
                         
-                    self.pos_estimate.update(position_corrected, 'y')
+            else:
+                if n < 2:
+                    position_corrected_x[n+1] = self.pos_estimate.x
+                else:
+                    position_corrected_y[n-1] = self.pos_estimate.y
             n += 1
+        self.pos_estimate.update((sum(position_corrected_x)/3), 'x')
+        self.pos_estimate.update((sum(position_corrected_y)/3), 'y')
+        self.previous_pos.update(self.pos_estimate.x, 'x')
+        self.previous_pos.update(self.pos_estimate.y, 'y')
+        print('X: ' + str(self.measures.x - 843.1) + ' X_est: ' + str(round(self.pos_estimate.x,1)))
+        print('Y: ' + str(self.measures.y - 405.4) + ' Y_est: ' + str(round(self.pos_estimate.y,1)))
 
 
     def setMap(self, labMap):
@@ -443,11 +488,11 @@ class MyRob(CRobLinkAngs):
 
             pid_value = abs(self.pid_controller.compute(error,dt))
 
-            if distance_to_goal > 0.2:
-                if error > 0.1:
+            if distance_to_goal > 0.1:
+                if error > 0:
                     speed_left = velocity
                     speed_right = max(0, velocity - pid_value)
-                elif error < -0.1:
+                elif error < 0:
                     speed_left = max(0, velocity - pid_value)
                     speed_right = velocity
                 else:
@@ -456,11 +501,11 @@ class MyRob(CRobLinkAngs):
                 
                 return False, speed_left, speed_right
             
-            elif distance_to_goal < -0.2:
-                if error > 0.1:
+            elif distance_to_goal < -0.1:
+                if error > 0:
                     speed_left = -velocity
                     speed_right = -max(0, velocity - pid_value)
-                elif error < -0.1:
+                elif error < 0:
                     speed_left = -max(0, velocity - pid_value)
                     speed_right = -velocity
                 else:
@@ -480,15 +525,15 @@ class MyRob(CRobLinkAngs):
 
             distance_to_goal = goal_orientation - orientation
             
-            if distance_to_goal >= 10:
+            if distance_to_goal >= 7:
                 return False, -velocity, velocity
-            elif distance_to_goal <= - 10:
+            elif distance_to_goal <= - 7:
                 return False, velocity, -velocity
             else:
                 return True, 0, 0
         
         elif (order == "adjust"):
-            if ((abs(orientation) < 7) | (abs(orientation-90) < 7)):
+            if ((abs(orientation) < 5) | (abs(orientation-90) < 5)):
                 self.order = "stop"  
                 if (len(self.path) != 0):
                     del self.path[0]
@@ -563,7 +608,7 @@ class MyRob(CRobLinkAngs):
         #     self.update_estimation(sensor_readings, filtered_orientation)
         #     print("updated")
         #     self.update_flag = False
-        
+
         # -------------------
         # Mapping
         # -------------------
@@ -580,7 +625,6 @@ class MyRob(CRobLinkAngs):
             if self.map.unexplored_cells:
                 next_location = self.map.find_next_location(self.map.unexplored_cells , self.pos_estimate, filtered_orientation)
             elif ((len(self.map.unexplored_cells) == 0) & (self.finish_flag != True)):
-                self.map.printMap()
                 next_location = self.map.find_next_location([Point()], self.pos_estimate, filtered_orientation)
                 self.finish_flag = True
 
@@ -599,10 +643,12 @@ class MyRob(CRobLinkAngs):
             dy = self.path[0].point.y - self.pos_estimate.y
 
         elif not self.finish_flag:
+            self.update_estimation(sensor_readings, filtered_orientation)
             self.map_flag = True
         
         else:
             self.map.unexplored_cells = []
+            self.map.printMap()
             print("Colisions:" + str(self.measures.collisions))
             self.finish()        
 
@@ -611,16 +657,16 @@ class MyRob(CRobLinkAngs):
         # -------------------
         
         if self.is_idle & (len(self.path) != 0):
-            if ((max(abs(dx), abs(dy)) ==  abs(dx)) & (abs(dx) > 0.3) & (abs(dy) < 0.3)):
-                if abs(filtered_orientation) < 5:
+            if ((max(abs(dx), abs(dy)) ==  abs(dx)) & (abs(dx) > 0.2)):
+                if abs(filtered_orientation) < 7:
                     if dx > 0:
                         self.order = "forward"                
                     elif dx < 0:
                         self.order = "backward"
                 else:
                     self.order = "turn right"            
-            elif ((max(abs(dx), abs(dy)) ==  abs(dy)) & (abs(dy) > 0.3) & (abs(dx) < 0.3)):
-                if abs(filtered_orientation - 90) < 5:
+            elif ((max(abs(dx), abs(dy)) ==  abs(dy)) & (abs(dy) > 0.2)):
+                if abs(filtered_orientation - 90) < 7:
                     if dy > 0:
                         self.order = "forward"                
                     elif dy < 0:
@@ -628,6 +674,8 @@ class MyRob(CRobLinkAngs):
                 else:
                     self.order = "turn left"
             else:
+                self.update_estimation(sensor_readings, filtered_orientation)
+                print(self.measures.time)
                 self.order = "adjust"
         
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)
