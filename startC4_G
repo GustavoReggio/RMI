@@ -13,7 +13,8 @@ sleep 2
 sleep 3
 
 # (cd pClient; python3 mainC4_G.py)
-(cd pClient; python3 mainRob_C4.py)
+# (cd pClient; python3 mainRob_C4.py)
+(cd pClient; python3 mainRob_C4MERGE.py)
 
 
 (cd simulator; gawk -f mapping_score.awk planning.out ../pClient/map_created.map) &
