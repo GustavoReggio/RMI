@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sys
 from croblink import *
 from math import *
@@ -179,7 +180,7 @@ class OwnMap:
             self.discovered_map[self.offset.y - beacon[0].y][self.offset.x + beacon[0].x] = str(beacon[1])
 
         # ----- Write map in File -----
-        with open("map_created.map", 'w') as file:
+        with open(str("map_made"+rob_name+".map"), 'w') as file:
             for row in self.discovered_map:
                 file.write(''.join(map(str, row)) + '\n')
 
@@ -195,7 +196,7 @@ class OwnMap:
                 path = path.parent
             final_path.append(partial_path[::-2])
         
-        with open("path_created.path", 'w') as file:
+        with open(str("path_made"+rob_name+".path"), 'w') as file:
             for i, path in enumerate(final_path):
                 if i > 0:
                     path = path[1:]  # Skip the first point in subsequent paths
@@ -309,6 +310,7 @@ class MyRob(CRobLinkAngs):
         self.map_flag = True
         self.plan_flag = False
         self.finish_flag = False
+        self.complete_flag = False
         self.objective = Point()
         self.pos_estimate = Point()
         self.previous_pos = Point()
@@ -549,6 +551,10 @@ class MyRob(CRobLinkAngs):
         dt = current_time - self.last_time
         self.last_time = current_time
 
+        if ((current_time == (int(self.simTime) - 5)) & (not self.complete_flag)): # early ending without finishing
+            self.map.writeMap()
+            self.finish()
+
         orientation = self.measures.compass
         kf.update(orientation)
         
@@ -619,12 +625,15 @@ class MyRob(CRobLinkAngs):
             dy = self.path[0].point.y - self.pos_estimate.y
 
         elif not self.finish_flag:
+            self.update_estimation(sensor_readings, filtered_orientation)
             self.map_flag = True        
 
         else:
             self.map.unexplored_cells = []
             self.map.writeMap()
-            self.finish()        
+            self.finish()
+            print("Robot: " + rob_name + " - Time taken: " + str(current_time) + " - Collisions: " + str(self.measures.collisions))
+            self.complete_flag = True        
 
         # -------------------
         # Wander Logic
@@ -648,7 +657,6 @@ class MyRob(CRobLinkAngs):
                 else:
                     self.order = "turn left"
             else:
-                self.update_estimation(sensor_readings, filtered_orientation)
                 self.order = "adjust"
         
         self.is_idle, speed_left, speed_right = self.getSpeeds(self.objective, self.pos_estimate, filtered_orientation, self.order, base_velocity, dt)

@@ -35,8 +35,14 @@ shift $(($OPTIND-1))
 case $challenge in
     4)
         # how to call agent for challenge 4
-        ./mainC4.py -h "$host" -p "$pos" -r "$robname" -f "$outfile"
-        mv map_created.map $outfile.map            # if needed
-        mv path_created.path $outfile.path           # if needed
-        ;;
+        ./mainC4.py -h "$host" -p "$pos" -r 1 -f "$outfile" &
+        ./mainC4.py -h "$host" -p "$pos" -r 2 -f "$outfile" &
+        ./mainC4.py -h "$host" -p "$pos" -r 3 -f "$outfile" &
+        ./mainC4.py -h "$host" -p "$pos" -r 4 -f "$outfile" &
+        ./mainC4.py -h "$host" -p "$pos" -r 5 -f "$outfile" &
+
+        wait
+        # mv map_created.map $outfile.map            # if needed
+        # mv path_created.path $outfile.path           # if needed
 esac
+"$@"

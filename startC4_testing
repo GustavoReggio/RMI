@@ -1,0 +1,57 @@
+#!/bin/bash
+clear &
+
+ARGS="--param ../Labs/rmi-2425/C4-config.xml"
+ARGS+=" --lab ../Labs/rmi-2425/C4-lab_v2.xml"
+ARGS+=" --grid ../Labs/rmi-2425/C4-grid.xml"
+ARGS+=" --scoring 3"
+(cd simulator; ./simulator $ARGS) &
+
+sleep 2
+
+(cd Viewer; ./Viewer --autoconnect)&
+
+sleep 3
+
+(cd agent_102959_118485; ./run_test.sh) 
+
+sleep 5
+echo "1" &
+(cd simulator; gawk -f mapping_score.awk planning.out ../agent_102959_118485/map_made1.map) &
+(cd simulator; gawk -f mapping_score.awk planning.out planning.out) &
+
+(cd simulator; gawk -f planning_score.awk planning.out ../agent_102959_118485/path_made1.path) &
+
+sleep 1
+echo "2" &
+(cd simulator; gawk -f mapping_score.awk planning.out ../agent_102959_118485/map_made2.map) &
+(cd simulator; gawk -f mapping_score.awk planning.out planning.out) &
+
+(cd simulator; gawk -f planning_score.awk planning.out ../agent_102959_118485/path_made2.path) &
+
+sleep 1
+echo "3" &
+(cd simulator; gawk -f mapping_score.awk planning.out ../agent_102959_118485/map_made3.map) &
+(cd simulator; gawk -f mapping_score.awk planning.out planning.out) &
+
+(cd simulator; gawk -f planning_score.awk planning.out ../agent_102959_118485/path_made3.path) &
+
+sleep 1
+echo "4" &
+(cd simulator; gawk -f mapping_score.awk planning.out ../agent_102959_118485/map_made4.map) &
+(cd simulator; gawk -f mapping_score.awk planning.out planning.out) &
+
+(cd simulator; gawk -f planning_score.awk planning.out ../agent_102959_118485/path_made4.path) &
+
+sleep 1
+echo "5" &
+(cd simulator; gawk -f mapping_score.awk planning.out ../agent_102959_118485/map_made5.map) &
+(cd simulator; gawk -f mapping_score.awk planning.out planning.out) &
+
+(cd simulator; gawk -f planning_score.awk planning.out ../agent_102959_118485/path_made5.path) &
+
+
+killall simulator
+killall Viewer
+
+echo Bye

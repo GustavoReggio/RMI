@@ -5,8 +5,6 @@
 	<Target X="13" Y="5.0"  Radius="1.0"/>
 	<Beacon X="19" Y="9.0"  Height="2.0"/>
 	<Target X="19" Y="9.0"  Radius="1.0"/>
-	<Beacon X="25" Y="3.0"  Height="2.0"/>
-	<Target X="25" Y="3.0"  Radius="1.0"/>
 	<Row  Pos="12" Pattern="                                         "  />
 	<Row  Pos="11" Pattern="  +  +  +  +--+--+  +--+--+  +  +  +--+  +  "  />
 	<Row  Pos="10" Pattern="  |  |  |           |           |           "  />
