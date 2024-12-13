@@ -35,3 +35,22 @@ Nesta fase, o agente deve localizar pontos-alvo no labirinto e calcular o caminh
 ```
 ./startC3
 ```
+
+________________________________________________________________________________________________________________________________________________________________
+
+# Assignment 2
+
+## Chalange 4 - Control
+
+```
+cd ~/RMI/RMI
+```
+```
+./startC4
+```
+
+
+
+
+
+
